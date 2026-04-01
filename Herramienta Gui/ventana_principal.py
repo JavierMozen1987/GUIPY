@@ -4,156 +4,144 @@ from componentes import *
 
 class VentanaPrincipal:
 
-    def __init__(self):
-        self.root = tk.Tk()
-        self.root.title("CreaGUIPy - Diseñador")
-        self.root.geometry("1000x600")
 
-        self.tipo_actual = None
+    def __init__(self, parent):
+        self.root = parent
         self.widget_actual = None
+        self.crear_ui()
 
-        self.crear_interfaz()
-
-    def crear_interfaz(self):
-
-        # =========================
-        # PANEL IZQUIERDO
-        # =========================
-        panel_izq = tk.Frame(self.root, width=180, bg="#e6e6e6")
-        panel_izq.pack(side="left", fill="y")
-
-        tk.Label(panel_izq, text="Archivos", bg="#e6e6e6",
-                 font=("Arial", 10, "bold")).pack(anchor="w", padx=10, pady=5)
-
-        lista_archivos = tk.Listbox(panel_izq)
-        lista_archivos.insert(0, "Archivo.py")
-        lista_archivos.pack(fill="both", expand=True, padx=5, pady=5)
+    def crear_ui(self):
 
         # =========================
-        # PANEL DERECHO (COMPONENTES)
+        # CONTENEDOR PRINCIPAL
         # =========================
-        self.crear_panel_componentes(self.root)
+        main_paned = ttk.PanedWindow(self.root, orient="horizontal")
+        main_paned.pack(fill="both", expand=True)
 
         # =========================
-        # ÁREA CENTRAL
+        # PANEL IZQUIERDO (EXPLORADOR)
         # =========================
-        centro = tk.Frame(self.root, bg="#dddddd")
-        centro.pack(expand=True, fill="both")
+        panel_izq = ttk.Frame(main_paned, width=200)
+        main_paned.add(panel_izq)
 
-        tabs = ttk.Notebook(centro)
+        ttk.Label(panel_izq, text="Explorador", font=("Segoe UI", 10, "bold")).pack(anchor="w", padx=10, pady=5)
+
+        self.lista_archivos = tk.Listbox(panel_izq)
+        self.lista_archivos.insert(0, "main.py")
+        self.lista_archivos.pack(fill="both", expand=True, padx=5, pady=5)
+
+        # =========================
+        # PANEL CENTRAL (TABS)
+        # =========================
+        panel_centro = ttk.Frame(main_paned)
+        main_paned.add(panel_centro, weight=1)
+
+        tabs = ttk.Notebook(panel_centro)
         tabs.pack(fill="both", expand=True)
 
-        frame_diseno = tk.Frame(tabs, bg="#dddddd")
-        frame_codigo = tk.Frame(tabs)
-
+        # --- TAB DISEÑO ---
+        frame_diseno = ttk.Frame(tabs)
         tabs.add(frame_diseno, text="Diseño")
+
+        # Canvas
+        self.canvas = tk.Frame(frame_diseno, bg="white", relief="solid", borderwidth=1)
+        self.canvas.place(relx=0.5, rely=0.5, anchor="center", width=600, height=400)
+
+        # --- TAB CÓDIGO ---
+        frame_codigo = ttk.Frame(tabs)
         tabs.add(frame_codigo, text="Código")
 
+        self.text_codigo = tk.Text(frame_codigo)
+        self.text_codigo.pack(fill="both", expand=True)
+
         # =========================
-        # CANVAS
+        # PANEL DERECHO (COMPONENTES + PROPIEDADES)
         # =========================
-        self.canvas = tk.Frame(
-            frame_diseno,
-            width=500,
-            height=400,
-            bg="white",
-            relief="solid",
-            borderwidth=1
-        )
-        self.canvas.place(relx=0.5, rely=0.5, anchor="center")
+        panel_der = ttk.Frame(main_paned, width=250)
+        main_paned.add(panel_der)
 
-        barra = tk.Frame(self.canvas, bg="#dcdcdc", height=25)
-        barra.pack(fill="x")
+        # Notebook derecho
+        tabs_der = ttk.Notebook(panel_der)
+        tabs_der.pack(fill="both", expand=True)
 
-        tk.Label(barra, text="Archivo", bg="#dcdcdc").pack(side="left", padx=5)
+        # COMPONENTES
+        tab_componentes = ttk.Frame(tabs_der)
+        tabs_der.add(tab_componentes, text="Componentes")
 
-    # =========================
-    # PANEL COMPONENTES
-    # =========================
-    def crear_panel_componentes(self, parent):
-
-        panel_der = tk.Frame(parent, width=220, bg="#f0f0f0")
-        panel_der.pack(side="right", fill="y")
-
-        tk.Label(panel_der, text="Componentes",
-                 font=("Arial", 10, "bold"), bg="#f0f0f0").pack(pady=5)
-
-        self.lista_componentes = [
-            ("🔘", "Botón", "Button"),
-            ("🏷️", "Etiqueta", "Label"),
-            ("⌨️", "Input", "Entry"),
-            ("☑️", "CheckBox", "Check"),
-            ("🔵", "RadioButton", "Radio"),
-            ("📋", "ComboBox", "Combo"),
-            ("📝", "TextArea", "Text")
+        componentes = [
+            ("Botón", "Button"),
+            ("Label", "Label"),
+            ("Input", "Entry")
         ]
 
-        for icono, nombre, tipo in self.lista_componentes:
-            frame = tk.Frame(panel_der, bg="white", relief="solid", borderwidth=1)
-            frame.pack(fill="x", padx=10, pady=4)
+        for nombre, tipo in componentes:
+            btn = ttk.Button(tab_componentes, text=nombre,
+                             command=lambda t=tipo: self.crear_componente(t))
+            btn.pack(fill="x", padx=5, pady=5)
 
-            label = tk.Label(frame, text=f"{icono} {nombre}", bg="white", anchor="w")
-            label.pack(fill="x", padx=5, pady=5)
+        # PROPIEDADES
+        self.tab_propiedades = ttk.Frame(tabs_der)
+        tabs_der.add(self.tab_propiedades, text="Propiedades")
 
-            label.bind("<Button-1>", lambda e, t=tipo: self.iniciar_drag(t))
+        ttk.Label(self.tab_propiedades, text="Texto:").pack(pady=5)
+        self.entry_texto = ttk.Entry(self.tab_propiedades)
+        self.entry_texto.pack(fill="x", padx=5)
+
+        ttk.Button(self.tab_propiedades, text="Aplicar",
+                   command=self.aplicar_propiedades).pack(pady=5)
 
     # =========================
-    # DRAG INICIO
+    # CREAR COMPONENTES
     # =========================
-    def iniciar_drag(self, tipo):
-        self.tipo_actual = tipo
-        self.root.bind("<ButtonRelease-1>", self.soltar_componente)
+    def crear_componente(self, tipo):
 
-    # =========================
-    # SOLTAR COMPONENTE
-    # =========================
-    def soltar_componente(self, event):
-
-        x = event.x_root - self.canvas.winfo_rootx()
-        y = event.y_root - self.canvas.winfo_rooty()
-
-        if self.tipo_actual == "Button":
+        if tipo == "Button":
             widget = crear_boton(self.canvas)
 
-        elif self.tipo_actual == "Label":
+        elif tipo == "Label":
             widget = crear_label(self.canvas)
 
-        elif self.tipo_actual == "Entry":
+        elif tipo == "Entry":
             widget = crear_entry(self.canvas)
-
-        elif self.tipo_actual == "Check":
-            widget = crear_checkbox(self.canvas)
-
-        elif self.tipo_actual == "Radio":
-            widget = crear_radiobutton(self.canvas)
-
-        elif self.tipo_actual == "Combo":
-            widget = crear_combobox(self.canvas)
-
-        elif self.tipo_actual == "Text":
-            widget = crear_textarea(self.canvas)
 
         else:
             return
 
-        widget.place(x=x, y=y)
+        widget.place(x=50, y=50)
 
         widget.bind("<Button-1>", self.seleccionar)
         widget.bind("<B1-Motion>", self.arrastrar)
 
-        self.root.unbind("<ButtonRelease-1>")
-
     # =========================
-    # MOVER COMPONENTES
+    # SELECCIONAR
     # =========================
     def seleccionar(self, event):
         self.widget_actual = event.widget
 
+        try:
+            texto = self.widget_actual.cget("text")
+            self.entry_texto.delete(0, tk.END)
+            self.entry_texto.insert(0, texto)
+        except:
+            pass
+
+    # =========================
+    # ARRASTRAR
+    # =========================
     def arrastrar(self, event):
         x = event.x_root - self.canvas.winfo_rootx()
         y = event.y_root - self.canvas.winfo_rooty()
 
         self.widget_actual.place(x=x, y=y)
 
-    def run(self):
-        self.root.mainloop()
+    # =========================
+    # PROPIEDADES
+    # =========================
+    def aplicar_propiedades(self):
+        if self.widget_actual:
+            try:
+                self.widget_actual.config(text=self.entry_texto.get())
+            except:
+                pass
+
+ 
