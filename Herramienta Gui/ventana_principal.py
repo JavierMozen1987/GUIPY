@@ -8,6 +8,7 @@ class VentanaPrincipal:
 
     def __init__(self, parent):
         self.root = parent
+        self.widgets = []
         self.widget_actual = None
         self.crear_ui()
 
@@ -115,39 +116,49 @@ class VentanaPrincipal:
     # =========================
     # CREAR COMPONENTES
     # =========================
-    def crear_componente(self, tipo):
-
+   def crear_componente(self, tipo):
+    
         if tipo == "Button":
             widget = crear_boton(self.canvas)
-
+    
         elif tipo == "Label":
             widget = crear_label(self.canvas)
-
+    
         elif tipo == "Entry":
             widget = crear_entry(self.canvas)
-
+    
         elif tipo == "Check":
             widget = crear_checkbox(self.canvas)
-
+    
         elif tipo == "Radio":
             widget = crear_radiobutton(self.canvas)
-
+    
         elif tipo == "Combo":
             widget = crear_combobox(self.canvas)
-
+    
         elif tipo == "Text":
             widget = crear_textarea(self.canvas)
-
+    
         elif tipo == "Frame":
             widget = tk.Frame(self.canvas, bg="lightgray", width=100, height=50)
-
+    
         else:
             return
-
+    
         widget.place(x=50, y=50)
-
+    
         widget.bind("<Button-1>", self.seleccionar)
         widget.bind("<B1-Motion>", self.arrastrar)
+    
+        # 🔥 GUARDAR INFO
+        self.widgets.append({
+            "widget": widget,
+            "tipo": tipo,
+            "x": 50,
+            "y": 50
+        })
+    
+        self.generar_codigo()
 
     # =========================
     # SELECCIONAR
@@ -168,8 +179,16 @@ class VentanaPrincipal:
     def arrastrar(self, event):
         x = event.x_root - self.canvas.winfo_rootx()
         y = event.y_root - self.canvas.winfo_rooty()
-
+    
         self.widget_actual.place(x=x, y=y)
+    
+        # 🔥 actualizar en lista
+        for w in self.widgets:
+            if w["widget"] == self.widget_actual:
+                w["x"] = x
+                w["y"] = y
+    
+        self.generar_codigo()
 
     # =========================
     # PROPIEDADES
@@ -208,3 +227,48 @@ class VentanaPrincipal:
                 self.widget_actual.config(bg=color)
             except:
                 pass
+
+    def generar_codigo(self):
+    
+        codigo = "import tkinter as tk\n\n"
+        codigo += "root = tk.Tk()\n\n"
+    
+        for i, w in enumerate(self.widgets):
+            tipo = w["tipo"]
+            x = w["x"]
+            y = w["y"]
+    
+            nombre = f"widget_{i}"
+    
+            if tipo == "Button":
+                codigo += f'{nombre} = tk.Button(root, text="Botón")\n'
+    
+            elif tipo == "Label":
+                codigo += f'{nombre} = tk.Label(root, text="Label")\n'
+    
+            elif tipo == "Entry":
+                codigo += f'{nombre} = tk.Entry(root)\n'
+    
+            elif tipo == "Check":
+                codigo += f'{nombre} = tk.Checkbutton(root, text="Check")\n'
+    
+            elif tipo == "Radio":
+                codigo += f'{nombre} = tk.Radiobutton(root, text="Radio")\n'
+    
+            elif tipo == "Combo":
+                codigo += f'{nombre} = ttk.Combobox(root)\n'
+    
+            elif tipo == "Text":
+                codigo += f'{nombre} = tk.Text(root, height=4, width=20)\n'
+    
+            elif tipo == "Frame":
+                codigo += f'{nombre} = tk.Frame(root, bg="lightgray", width=100, height=50)\n'
+    
+            codigo += f"{nombre}.place(x={x}, y={y})\n\n"
+    
+        codigo += "root.mainloop()"
+    
+        # 🔥 mostrar en pestaña código
+        self.text_codigo.delete("1.0", tk.END)
+        self.text_codigo.insert(tk.END, codigo)
+
