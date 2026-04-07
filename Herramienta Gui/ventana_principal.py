@@ -1,9 +1,10 @@
 import tkinter as tk
 from tkinter import ttk
 from componentes import *
+from tkinter import colorchooser
+from tkinter import font
 
 class VentanaPrincipal:
-
 
     def __init__(self, parent):
         self.root = parent
@@ -19,19 +20,20 @@ class VentanaPrincipal:
         main_paned.pack(fill="both", expand=True)
 
         # =========================
-        # PANEL IZQUIERDO (EXPLORADOR)
+        # PANEL IZQUIERDO
         # =========================
         panel_izq = ttk.Frame(main_paned, width=200)
         main_paned.add(panel_izq)
 
-        ttk.Label(panel_izq, text="Explorador", font=("Segoe UI", 10, "bold")).pack(anchor="w", padx=10, pady=5)
+        ttk.Label(panel_izq, text="Explorador",
+                  font=("Segoe UI", 10, "bold")).pack(anchor="w", padx=10, pady=5)
 
         self.lista_archivos = tk.Listbox(panel_izq)
         self.lista_archivos.insert(0, "main.py")
         self.lista_archivos.pack(fill="both", expand=True, padx=5, pady=5)
 
         # =========================
-        # PANEL CENTRAL (TABS)
+        # PANEL CENTRAL
         # =========================
         panel_centro = ttk.Frame(main_paned)
         main_paned.add(panel_centro, weight=1)
@@ -39,15 +41,12 @@ class VentanaPrincipal:
         tabs = ttk.Notebook(panel_centro)
         tabs.pack(fill="both", expand=True)
 
-        # --- TAB DISEÑO ---
         frame_diseno = ttk.Frame(tabs)
         tabs.add(frame_diseno, text="Diseño")
 
-        # Canvas
         self.canvas = tk.Frame(frame_diseno, bg="white", relief="solid", borderwidth=1)
         self.canvas.place(relx=0.5, rely=0.5, anchor="center", width=600, height=400)
 
-        # --- TAB CÓDIGO ---
         frame_codigo = ttk.Frame(tabs)
         tabs.add(frame_codigo, text="Código")
 
@@ -55,23 +54,29 @@ class VentanaPrincipal:
         self.text_codigo.pack(fill="both", expand=True)
 
         # =========================
-        # PANEL DERECHO (COMPONENTES + PROPIEDADES)
+        # PANEL DERECHO
         # =========================
         panel_der = ttk.Frame(main_paned, width=250)
         main_paned.add(panel_der)
 
-        # Notebook derecho
         tabs_der = ttk.Notebook(panel_der)
         tabs_der.pack(fill="both", expand=True)
 
-        # COMPONENTES
+        # =========================
+        # TAB COMPONENTES
+        # =========================
         tab_componentes = ttk.Frame(tabs_der)
         tabs_der.add(tab_componentes, text="Componentes")
 
         componentes = [
             ("Botón", "Button"),
             ("Label", "Label"),
-            ("Input", "Entry")
+            ("Input", "Entry"),
+            ("CheckBox", "Check"),
+            ("RadioButton", "Radio"),
+            ("ComboBox", "Combo"),
+            ("TextArea", "Text"),
+            ("Frame", "Frame")
         ]
 
         for nombre, tipo in componentes:
@@ -79,7 +84,9 @@ class VentanaPrincipal:
                              command=lambda t=tipo: self.crear_componente(t))
             btn.pack(fill="x", padx=5, pady=5)
 
-        # PROPIEDADES
+        # =========================
+        # TAB PROPIEDADES ✅ (AQUÍ ESTABA EL ERROR)
+        # =========================
         self.tab_propiedades = ttk.Frame(tabs_der)
         tabs_der.add(self.tab_propiedades, text="Propiedades")
 
@@ -87,8 +94,23 @@ class VentanaPrincipal:
         self.entry_texto = ttk.Entry(self.tab_propiedades)
         self.entry_texto.pack(fill="x", padx=5)
 
+        ttk.Label(self.tab_propiedades, text="Tamaño letra:").pack(pady=5)
+        self.entry_size = ttk.Entry(self.tab_propiedades)
+        self.entry_size.pack(fill="x", padx=5)
+
+        ttk.Label(self.tab_propiedades, text="Fuente:").pack(pady=5)
+        self.combo_font = ttk.Combobox(self.tab_propiedades,
+                                       values=["Arial", "Times", "Courier"])
+        self.combo_font.pack(fill="x", padx=5)
+
+        ttk.Button(self.tab_propiedades, text="Color texto",
+                   command=self.cambiar_color_texto).pack(pady=5)
+
+        ttk.Button(self.tab_propiedades, text="Color fondo",
+                   command=self.cambiar_color_fondo).pack(pady=5)
+
         ttk.Button(self.tab_propiedades, text="Aplicar",
-                   command=self.aplicar_propiedades).pack(pady=5)
+                   command=self.aplicar_propiedades).pack(pady=10)
 
     # =========================
     # CREAR COMPONENTES
@@ -103,6 +125,21 @@ class VentanaPrincipal:
 
         elif tipo == "Entry":
             widget = crear_entry(self.canvas)
+
+        elif tipo == "Check":
+            widget = crear_checkbox(self.canvas)
+
+        elif tipo == "Radio":
+            widget = crear_radiobutton(self.canvas)
+
+        elif tipo == "Combo":
+            widget = crear_combobox(self.canvas)
+
+        elif tipo == "Text":
+            widget = crear_textarea(self.canvas)
+
+        elif tipo == "Frame":
+            widget = tk.Frame(self.canvas, bg="lightgray", width=100, height=50)
 
         else:
             return
@@ -138,10 +175,36 @@ class VentanaPrincipal:
     # PROPIEDADES
     # =========================
     def aplicar_propiedades(self):
-        if self.widget_actual:
+
+        if not self.widget_actual:
+            return
+
+        try:
+            self.widget_actual.config(text=self.entry_texto.get())
+        except:
+            pass
+
+        try:
+            size = int(self.entry_size.get())
+            tipo = self.combo_font.get()
+
+            nueva_fuente = font.Font(family=tipo, size=size)
+            self.widget_actual.config(font=nueva_fuente)
+        except:
+            pass
+
+    def cambiar_color_texto(self):
+        color = colorchooser.askcolor()[1]
+        if self.widget_actual and color:
             try:
-                self.widget_actual.config(text=self.entry_texto.get())
+                self.widget_actual.config(fg=color)
             except:
                 pass
 
- 
+    def cambiar_color_fondo(self):
+        color = colorchooser.askcolor()[1]
+        if self.widget_actual and color:
+            try:
+                self.widget_actual.config(bg=color)
+            except:
+                pass
