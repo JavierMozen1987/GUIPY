@@ -49,8 +49,12 @@ class AppPrincipal:
 
     def mostrar_fondo(self):
 
-        imagen = Image.open("imagenes/marcade_agua.png").convert("RGBA")
+        import os
 
+        ruta_actual = os.path.dirname(__file__)
+        ruta_imagen = os.path.join(ruta_actual, "imagenes", "marcade_agua.png")
+
+        imagen = Image.open(ruta_imagen).convert("RGBA")
         # Ajustar a pantalla
         imagen = imagen.resize(
             (self.root.winfo_screenwidth(), self.root.winfo_screenheight())
