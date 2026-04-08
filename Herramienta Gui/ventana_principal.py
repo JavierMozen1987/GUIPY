@@ -3,6 +3,7 @@ from tkinter import ttk
 from componentes import *
 from tkinter import colorchooser
 from tkinter import font
+from explorador import crear_explorador
 
 class VentanaPrincipal:
 
@@ -23,15 +24,7 @@ class VentanaPrincipal:
         # =========================
         # PANEL IZQUIERDO
         # =========================
-        panel_izq = ttk.Frame(main_paned, width=200)
-        main_paned.add(panel_izq)
-
-        ttk.Label(panel_izq, text="Explorador",
-                  font=("Segoe UI", 10, "bold")).pack(anchor="w", padx=10, pady=5)
-
-        self.lista_archivos = tk.Listbox(panel_izq)
-        self.lista_archivos.insert(0, "main.py")
-        self.lista_archivos.pack(fill="both", expand=True, padx=5, pady=5)
+        self.lista_archivos = crear_explorador(main_paned)
 
         # =========================
         # PANEL CENTRAL
