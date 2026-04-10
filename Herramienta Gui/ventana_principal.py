@@ -1,16 +1,19 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, colorchooser, font, messagebox, filedialog
 from componentes import *
-from tkinter import colorchooser
-from tkinter import font
 from explorador import crear_explorador
+import os
 
 class VentanaPrincipal:
 
     def __init__(self, parent):
         self.root = parent
         self.widget_actual = None
+        self.data_actual = None
         self.widgets = []
+        self.nombre_archivo = "archivo.py"
+        self.ruta_archivo = os.path.join(os.getcwd(), self.nombre_archivo)
+
         self.crear_ui()
 
     def crear_ui(self):
@@ -26,6 +29,22 @@ class VentanaPrincipal:
         # =========================
         self.lista_archivos = crear_explorador(main_paned)
 
+        try:
+            self.lista_archivos.delete(0, tk.END)
+            self.lista_archivos.insert(tk.END, self.nombre_archivo)
+        except Exception:
+            pass
+
+        try:
+            contenedor_explorador = self.lista_archivos.master
+            ttk.Button(
+                contenedor_explorador,
+                text="Guardar archivo",
+                command=self.guardar_codigo_python
+            ).pack(fill="x", padx=5, pady=5)
+        except Exception:
+            pass
+
         # =========================
         # PANEL CENTRAL
         # =========================
@@ -39,18 +58,18 @@ class VentanaPrincipal:
         tabs.add(frame_diseno, text="Diseño")
 
         self.canvas = tk.Frame(frame_diseno, bg="white", relief="solid", borderwidth=1)
-        self.canvas.place(relx=0.5, rely=0.5, anchor="center", width=600, height=400)
+        self.canvas.place(relx=0.5, rely=0.5, anchor="center", width=700, height=450)
 
         frame_codigo = ttk.Frame(tabs)
         tabs.add(frame_codigo, text="Código")
 
-        self.text_codigo = tk.Text(frame_codigo)
+        self.text_codigo = tk.Text(frame_codigo, wrap="none")
         self.text_codigo.pack(fill="both", expand=True)
 
         # =========================
         # PANEL DERECHO
         # =========================
-        panel_der = ttk.Frame(main_paned, width=250)
+        panel_der = ttk.Frame(main_paned, width=280)
         main_paned.add(panel_der)
 
         tabs_der = ttk.Notebook(panel_der)
@@ -74,37 +93,70 @@ class VentanaPrincipal:
         ]
 
         for nombre, tipo in componentes:
-            btn = ttk.Button(tab_componentes, text=nombre,
-                             command=lambda t=tipo: self.crear_componente(t))
+            btn = ttk.Button(
+                tab_componentes,
+                text=nombre,
+                command=lambda t=tipo: self.crear_componente(t)
+            )
             btn.pack(fill="x", padx=5, pady=5)
 
         # =========================
-        # TAB PROPIEDADES ✅ (AQUÍ ESTABA EL ERROR)
+        # TAB PROPIEDADES
         # =========================
         self.tab_propiedades = ttk.Frame(tabs_der)
         tabs_der.add(self.tab_propiedades, text="Propiedades")
 
-        ttk.Label(self.tab_propiedades, text="Texto:").pack(pady=5)
-        self.entry_texto = ttk.Entry(self.tab_propiedades)
-        self.entry_texto.pack(fill="x", padx=5)
+        cont_props = ttk.Frame(self.tab_propiedades, padding=10)
+        cont_props.pack(fill="both", expand=True)
 
-        ttk.Label(self.tab_propiedades, text="Tamaño letra:").pack(pady=5)
-        self.entry_size = ttk.Entry(self.tab_propiedades)
-        self.entry_size.pack(fill="x", padx=5)
+        ttk.Label(cont_props, text="Texto:").pack(anchor="w", pady=(0, 3))
+        self.entry_texto = ttk.Entry(cont_props)
+        self.entry_texto.pack(fill="x", pady=(0, 8))
 
-        ttk.Label(self.tab_propiedades, text="Fuente:").pack(pady=5)
-        self.combo_font = ttk.Combobox(self.tab_propiedades,
-                                       values=["Arial", "Times", "Courier"])
-        self.combo_font.pack(fill="x", padx=5)
+        ttk.Label(cont_props, text="Tamaño letra:").pack(anchor="w", pady=(0, 3))
+        self.entry_size = ttk.Entry(cont_props)
+        self.entry_size.pack(fill="x", pady=(0, 8))
 
-        ttk.Button(self.tab_propiedades, text="Color texto",
-                   command=self.cambiar_color_texto).pack(pady=5)
+        ttk.Label(cont_props, text="Fuente:").pack(anchor="w", pady=(0, 3))
+        self.combo_font = ttk.Combobox(
+            cont_props,
+            values=["Arial", "Times New Roman", "Courier New", "Verdana", "Segoe UI"],
+            state="readonly"
+        )
+        self.combo_font.pack(fill="x", pady=(0, 8))
+        self.combo_font.set("Arial")
 
-        ttk.Button(self.tab_propiedades, text="Color fondo",
-                   command=self.cambiar_color_fondo).pack(pady=5)
+        ttk.Label(cont_props, text="Ancho:").pack(anchor="w", pady=(0, 3))
+        self.entry_width = ttk.Entry(cont_props)
+        self.entry_width.pack(fill="x", pady=(0, 8))
 
-        ttk.Button(self.tab_propiedades, text="Aplicar",
-                   command=self.aplicar_propiedades).pack(pady=10)
+        ttk.Label(cont_props, text="Alto:").pack(anchor="w", pady=(0, 3))
+        self.entry_height = ttk.Entry(cont_props)
+        self.entry_height.pack(fill="x", pady=(0, 8))
+
+        ttk.Button(
+            cont_props,
+            text="Color texto",
+            command=self.cambiar_color_texto
+        ).pack(fill="x", pady=4)
+
+        ttk.Button(
+            cont_props,
+            text="Color fondo",
+            command=self.cambiar_color_fondo
+        ).pack(fill="x", pady=4)
+
+        ttk.Button(
+            cont_props,
+            text="Aplicar",
+            command=self.aplicar_propiedades
+        ).pack(fill="x", pady=(12, 4))
+
+        ttk.Button(
+            cont_props,
+            text="Eliminar componente",
+            command=self.eliminar_componente
+        ).pack(fill="x", pady=4)
 
     # =========================
     # CREAR COMPONENTES
@@ -113,73 +165,141 @@ class VentanaPrincipal:
 
         if tipo == "Button":
             widget = crear_boton(self.canvas)
+            width, height = 100, 30
+            text = "Botón"
 
         elif tipo == "Label":
             widget = crear_label(self.canvas)
+            width, height = 100, 30
+            text = "Etiqueta"
 
         elif tipo == "Entry":
             widget = crear_entry(self.canvas)
+            width, height = 140, 28
+            text = ""
 
         elif tipo == "Check":
             widget = crear_checkbox(self.canvas)
+            width, height = 120, 30
+            text = "Check"
 
         elif tipo == "Radio":
             widget = crear_radiobutton(self.canvas)
+            width, height = 120, 30
+            text = "Opción"
 
         elif tipo == "Combo":
             widget = crear_combobox(self.canvas)
+            width, height = 140, 30
+            text = ""
 
         elif tipo == "Text":
             widget = crear_textarea(self.canvas)
+            width, height = 180, 80
+            text = ""
 
         elif tipo == "Frame":
-            widget = tk.Frame(self.canvas, bg="lightgray", width=100, height=50)
+            widget = tk.Frame(self.canvas, bg="lightgray", relief="solid", borderwidth=1)
+            width, height = 120, 70
+            text = ""
 
         else:
             return
 
-        widget.place(x=50, y=50)
+        widget.place(x=50, y=50, width=width, height=height)
+
+        data = {
+            "widget": widget,
+            "tipo": tipo,
+            "x": 50,
+            "y": 50,
+            "props": {
+                "text": text,
+                "fg": "",
+                "bg": "lightgray" if tipo == "Frame" else "",
+                "font_family": "Arial",
+                "font_size": 10,
+                "width": width,
+                "height": height
+            }
+        }
+
+        self.widgets.append(data)
+        self.aplicar_estilo_inicial(data)
 
         widget.bind("<Button-1>", self.seleccionar)
         widget.bind("<B1-Motion>", self.arrastrar)
 
-        # 🔥 GUARDAR INFO
-        self.widgets.append({
-            "widget": widget,
-            "tipo": tipo,
-            "x": 50,
-            "y": 50
-        })
-
         self.generar_codigo()
+
+    def aplicar_estilo_inicial(self, data):
+        widget = data["widget"]
+        props = data["props"]
+
+        try:
+            if data["tipo"] in ["Button", "Label", "Check", "Radio"]:
+                widget.config(text=props["text"])
+        except Exception:
+            pass
+
+        try:
+            f = font.Font(family=props["font_family"], size=props["font_size"])
+            if data["tipo"] in ["Button", "Label", "Check", "Radio"]:
+                widget.config(font=f)
+        except Exception:
+            pass
 
     # =========================
     # SELECCIONAR
     # =========================
     def seleccionar(self, event):
         self.widget_actual = event.widget
+        self.data_actual = None
 
-        try:
-            texto = self.widget_actual.cget("text")
-            self.entry_texto.delete(0, tk.END)
-            self.entry_texto.insert(0, texto)
-        except:
-            pass
+        for item in self.widgets:
+            if item["widget"] == self.widget_actual:
+                self.data_actual = item
+                break
+
+        if not self.data_actual:
+            return
+
+        props = self.data_actual["props"]
+
+        self.entry_texto.delete(0, tk.END)
+        self.entry_texto.insert(0, props["text"])
+
+        self.entry_size.delete(0, tk.END)
+        self.entry_size.insert(0, str(props["font_size"]))
+
+        self.combo_font.set(props["font_family"])
+
+        self.entry_width.delete(0, tk.END)
+        self.entry_width.insert(0, str(props["width"]))
+
+        self.entry_height.delete(0, tk.END)
+        self.entry_height.insert(0, str(props["height"]))
 
     # =========================
     # ARRASTRAR
     # =========================
     def arrastrar(self, event):
+        if not self.widget_actual:
+            return
+
         x = event.x_root - self.canvas.winfo_rootx()
         y = event.y_root - self.canvas.winfo_rooty()
 
+        x = max(0, x)
+        y = max(0, y)
+
         self.widget_actual.place(x=x, y=y)
 
-        # 🔥 actualizar en lista
-        for w in self.widgets:
-            if w["widget"] == self.widget_actual:
-                w["x"] = x
-                w["y"] = y
+        for item in self.widgets:
+            if item["widget"] == self.widget_actual:
+                item["x"] = x
+                item["y"] = y
+                break
 
         self.generar_codigo()
 
@@ -188,79 +308,213 @@ class VentanaPrincipal:
     # =========================
     def aplicar_propiedades(self):
 
+        if not self.widget_actual or not self.data_actual:
+            return
+
+        props = self.data_actual["props"]
+        tipo = self.data_actual["tipo"]
+
+        # Texto
+        nuevo_texto = self.entry_texto.get()
+        props["text"] = nuevo_texto
+
+        try:
+            if tipo in ["Button", "Label", "Check", "Radio"]:
+                self.widget_actual.config(text=nuevo_texto)
+        except Exception:
+            pass
+
+        # Fuente
+        try:
+            size = int(self.entry_size.get())
+            family = self.combo_font.get().strip() or "Arial"
+
+            props["font_size"] = size
+            props["font_family"] = family
+
+            nueva_fuente = font.Font(family=family, size=size)
+
+            if tipo in ["Button", "Label", "Check", "Radio"]:
+                self.widget_actual.config(font=nueva_fuente)
+        except Exception:
+            pass
+
+        # Tamaño
+        try:
+            width = int(self.entry_width.get())
+            height = int(self.entry_height.get())
+
+            props["width"] = width
+            props["height"] = height
+
+            self.widget_actual.place(
+                x=self.data_actual["x"],
+                y=self.data_actual["y"],
+                width=width,
+                height=height
+            )
+        except Exception:
+            pass
+
+        self.generar_codigo()
+
+    def cambiar_color_texto(self):
+        if not self.widget_actual or not self.data_actual:
+            return
+
+        color = colorchooser.askcolor()[1]
+        if not color:
+            return
+
+        self.data_actual["props"]["fg"] = color
+
+        try:
+            if self.data_actual["tipo"] in ["Button", "Label", "Check", "Radio"]:
+                self.widget_actual.config(fg=color)
+        except Exception:
+            pass
+
+        self.generar_codigo()
+
+    def cambiar_color_fondo(self):
+        if not self.widget_actual or not self.data_actual:
+            return
+
+        color = colorchooser.askcolor()[1]
+        if not color:
+            return
+
+        self.data_actual["props"]["bg"] = color
+
+        try:
+            if self.data_actual["tipo"] in ["Button", "Label", "Frame"]:
+                self.widget_actual.config(bg=color)
+        except Exception:
+            pass
+
+        self.generar_codigo()
+
+    def eliminar_componente(self):
         if not self.widget_actual:
             return
 
-        try:
-            self.widget_actual.config(text=self.entry_texto.get())
-        except:
-            pass
+        for item in self.widgets:
+            if item["widget"] == self.widget_actual:
+                item["widget"].destroy()
+                self.widgets.remove(item)
+                break
 
-        try:
-            size = int(self.entry_size.get())
-            tipo = self.combo_font.get()
+        self.widget_actual = None
+        self.data_actual = None
 
-            nueva_fuente = font.Font(family=tipo, size=size)
-            self.widget_actual.config(font=nueva_fuente)
-        except:
-            pass
+        self.entry_texto.delete(0, tk.END)
+        self.entry_size.delete(0, tk.END)
+        self.entry_width.delete(0, tk.END)
+        self.entry_height.delete(0, tk.END)
 
-    def cambiar_color_texto(self):
-        color = colorchooser.askcolor()[1]
-        if self.widget_actual and color:
-            try:
-                self.widget_actual.config(fg=color)
-            except:
-                pass
+        self.generar_codigo()
 
-    def cambiar_color_fondo(self):
-        color = colorchooser.askcolor()[1]
-        if self.widget_actual and color:
-            try:
-                self.widget_actual.config(bg=color)
-            except:
-                pass
-
+    # =========================
+    # GENERAR CÓDIGO
+    # =========================
     def generar_codigo(self):
 
-        codigo = "import tkinter as tk\n\n"
-        codigo += "root = tk.Tk()\n\n"
+        codigo = "import tkinter as tk\nfrom tkinter import ttk\n\n"
+        codigo += "root = tk.Tk()\n"
+        codigo += "root.geometry('900x600')\n\n"
 
-        for i, w in enumerate(self.widgets):
-            tipo = w["tipo"]
-            x = w["x"]
-            y = w["y"]
-
+        for i, item in enumerate(self.widgets):
+            tipo = item["tipo"]
+            x = item["x"]
+            y = item["y"]
+            props = item["props"]
             nombre = f"widget_{i}"
 
+            config = []
+
+            if props["text"] and tipo in ["Button", "Label", "Check", "Radio"]:
+                config.append(f'text="{props["text"]}"')
+
+            if props["bg"] and tipo in ["Button", "Label", "Frame"]:
+                config.append(f'bg="{props["bg"]}"')
+
+            if props["fg"] and tipo in ["Button", "Label", "Check", "Radio"]:
+                config.append(f'fg="{props["fg"]}"')
+
+            if tipo in ["Button", "Label", "Check", "Radio"]:
+                config.append(
+                    f'font=("{props["font_family"]}", {props["font_size"]})'
+                )
+
+            config_str = ", ".join(config)
+
             if tipo == "Button":
-                codigo += f'{nombre} = tk.Button(root, text="Botón")\n'
+                codigo += f"{nombre} = tk.Button(root, {config_str})\n"
 
             elif tipo == "Label":
-                codigo += f'{nombre} = tk.Label(root, text="Label")\n'
+                codigo += f"{nombre} = tk.Label(root, {config_str})\n"
 
             elif tipo == "Entry":
-                codigo += f'{nombre} = tk.Entry(root)\n'
+                codigo += f"{nombre} = tk.Entry(root)\n"
 
             elif tipo == "Check":
-                codigo += f'{nombre} = tk.Checkbutton(root, text="Check")\n'
+                codigo += f"{nombre} = tk.Checkbutton(root, {config_str})\n"
 
             elif tipo == "Radio":
-                codigo += f'{nombre} = tk.Radiobutton(root, text="Radio")\n'
+                codigo += f"{nombre} = tk.Radiobutton(root, {config_str})\n"
 
             elif tipo == "Combo":
-                codigo += f'{nombre} = ttk.Combobox(root)\n'
+                codigo += f"{nombre} = ttk.Combobox(root, values=['Opción 1', 'Opción 2'])\n"
+                codigo += f"{nombre}.current(0)\n"
 
             elif tipo == "Text":
-                codigo += f'{nombre} = tk.Text(root, height=4, width=20)\n'
+                codigo += f"{nombre} = tk.Text(root)\n"
 
             elif tipo == "Frame":
-                codigo += f'{nombre} = tk.Frame(root, bg="lightgray", width=100, height=50)\n'
+                frame_config = []
+                if props["bg"]:
+                    frame_config.append(f'bg="{props["bg"]}"')
+                frame_config.append("relief='solid'")
+                frame_config.append("borderwidth=1")
+                codigo += f"{nombre} = tk.Frame(root, {', '.join(frame_config)})\n"
 
-            codigo += f"{nombre}.place(x={x}, y={y})\n\n"
+            codigo += (
+                f"{nombre}.place(x={x}, y={y}, "
+                f"width={props['width']}, height={props['height']})\n\n"
+            )
 
         codigo += "root.mainloop()"
 
-        # 🔥 mostrar en pestaña código
         self.text_codigo.delete("1.0", tk.END)
         self.text_codigo.insert(tk.END, codigo)
+
+    # =========================
+    # GUARDAR ARCHIVO
+    # =========================
+    def guardar_codigo_python(self):
+
+        codigo = self.text_codigo.get("1.0", tk.END).strip()
+
+        if not codigo:
+            messagebox.showwarning("Aviso", "No hay código para guardar.")
+            return
+
+        # Ventana para elegir ruta
+        ruta = filedialog.asksaveasfilename(
+            defaultextension=".py",
+            filetypes=[("Archivos Python", "*.py")],
+            title="Guardar archivo como"
+        )
+
+        # Si el usuario cancela
+        if not ruta:
+            return
+
+        try:
+            with open(ruta, "w", encoding="utf-8") as archivo:
+                archivo.write(codigo)
+
+            messagebox.showinfo("Éxito", "Archivo guardado correctamente")
+
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo guardar:\n{e}")
