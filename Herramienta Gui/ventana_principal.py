@@ -17,12 +17,48 @@ class VentanaPrincipal:
         self.crear_ui()
 
     def crear_ui(self):
+        style = ttk.Style()
 
+        # Tema base
+        style.theme_use("default")
+
+        # Fondo general
+        style.configure("TFrame", background="#ECE7E7")
+
+        # Notebook (pestañas)
+        style.configure("TNotebook", background="#ECE7E7", borderwidth=0)
+
+        # Pestañas normales (NO seleccionadas)
+        style.configure(
+            "TNotebook.Tab",
+            background="#ECE7E7",
+            padding=5
+        )
+
+        # Pestaña seleccionada
+        style.map(
+            "TNotebook.Tab",
+            background=[("selected", "white")],
+            expand=[("selected", [1, 1, 1, 0])]
+        )
+
+        # Frame blanco personalizado
+        style.configure("Blanco.TFrame", background="white")
         # =========================
         # CONTENEDOR PRINCIPAL
         # =========================
-        main_paned = ttk.PanedWindow(self.root, orient="horizontal")
-        main_paned.pack(fill="both", expand=True)
+        contenedor_principal = tk.Frame(self.root)
+        contenedor_principal.pack(fill="both", expand=True)
+
+        # IZQUIERDA + CENTRO (movible)
+        main_paned = ttk.PanedWindow(contenedor_principal, orient="horizontal")
+        main_paned.pack(side="left", fill="both", expand=True)
+
+        # PANEL DERECHO (FIJO)
+        panel_der = ttk.Frame(contenedor_principal, width=280)
+        panel_der.pack(side="right", fill="y")
+
+        panel_der.pack_propagate(False)
 
         # =========================
         # PANEL IZQUIERDO
@@ -54,12 +90,61 @@ class VentanaPrincipal:
         tabs = ttk.Notebook(panel_centro)
         tabs.pack(fill="both", expand=True)
 
-        frame_diseno = ttk.Frame(tabs)
+        frame_diseno = ttk.Frame(tabs, style="Blanco.TFrame")
         tabs.add(frame_diseno, text="Diseño")
 
-        self.canvas = tk.Frame(frame_diseno, bg="white", relief="solid", borderwidth=1)
-        self.canvas.place(relx=0.5, rely=0.5, anchor="center", width=700, height=450)
+        # =========================
+        # VENTANA DE DISEÑO (FAKE WINDOW)
+        # =========================
+        contenedor_ventana = tk.Frame(
+            frame_diseno,
+            bg="#ECE7E7"
+        )
+        contenedor_ventana.place(relx=0.5, rely=0.5, anchor="center", width=720, height=480)
 
+        # Marco de ventana
+        ventana_mock = tk.Frame(
+            contenedor_ventana,
+            bg="white",
+            relief="solid",
+            borderwidth=1
+        )
+        ventana_mock.pack(fill="both", expand=True)
+
+        # =========================
+        # BARRA SUPERIOR (tipo ventana)
+        # =========================
+        barra_titulo = tk.Frame(
+            ventana_mock,
+            bg="#ECE7E7",
+            height=30
+        )
+        barra_titulo.pack(fill="x")
+
+        # Título
+        tk.Label(
+            barra_titulo,
+            text="Ventana de diseño",
+            bg="#ECE7E7"
+        ).pack(side="left", padx=10)
+
+        # Botones (visual)
+        frame_botones = tk.Frame(barra_titulo, bg="#ECE7E7")
+        frame_botones.pack(side="right", padx=5)
+
+        tk.Label(frame_botones, text="—", bg="#ECE7E7", width=3).pack(side="left")
+        tk.Label(frame_botones, text="□", bg="#ECE7E7", width=3).pack(side="left")
+        tk.Label(frame_botones, text="✕", bg="#ECE7E7", width=3).pack(side="left")
+
+        # =========================
+        # ÁREA DE DISEÑO (CANVAS)
+        # =========================
+        self.canvas = tk.Frame(
+            ventana_mock,
+            bg="white"
+        )
+        self.canvas.pack(fill="both", expand=True)
+    
         frame_codigo = ttk.Frame(tabs)
         tabs.add(frame_codigo, text="Código")
 
@@ -69,8 +154,6 @@ class VentanaPrincipal:
         # =========================
         # PANEL DERECHO
         # =========================
-        panel_der = ttk.Frame(main_paned, width=280)
-        main_paned.add(panel_der)
 
         tabs_der = ttk.Notebook(panel_der)
         tabs_der.pack(fill="both", expand=True)
@@ -78,8 +161,18 @@ class VentanaPrincipal:
         # =========================
         # TAB COMPONENTES
         # =========================
-        tab_componentes = ttk.Frame(tabs_der)
+        tab_componentes = tk.Frame(tabs_der, bg="white")
         tabs_der.add(tab_componentes, text="Componentes")
+
+        # Dividir en dos secciones (arriba/abajo)
+        contenedor_dividido = tk.PanedWindow(tab_componentes,orient="vertical",bg="#ECE7E7",sashwidth=5)
+        contenedor_dividido.pack(fill="both", expand=True)
+
+        # =========================
+        # ARRIBA → COMPONENTES
+        # =========================
+        frame_componentes = tk.Frame(contenedor_dividido, bg="white")
+        contenedor_dividido.add(frame_componentes)
 
         componentes = [
             ("Botón", "Button"),
@@ -94,70 +187,87 @@ class VentanaPrincipal:
 
         for nombre, tipo in componentes:
             btn = ttk.Button(
-                tab_componentes,
+                frame_componentes,
                 text=nombre,
                 command=lambda t=tipo: self.crear_componente(t)
             )
             btn.pack(fill="x", padx=5, pady=5)
 
         # =========================
-        # TAB PROPIEDADES
+        # ABAJO → PROPIEDADES
         # =========================
-        self.tab_propiedades = ttk.Frame(tabs_der)
-        tabs_der.add(self.tab_propiedades, text="Propiedades")
+       
+        frame_propiedades = tk.Frame(contenedor_dividido, bg="white", padx=10, pady=10)
+        contenedor_dividido.add(frame_propiedades)
 
-        cont_props = ttk.Frame(self.tab_propiedades, padding=10)
-        cont_props.pack(fill="both", expand=True)
+        # Título
+        tk.Label(
+            frame_propiedades,
+            text="Propiedades",
+            bg="white",
+            font=("Segoe UI", 10, "bold")
+        ).pack(anchor="w", pady=(0, 5))
 
-        ttk.Label(cont_props, text="Texto:").pack(anchor="w", pady=(0, 3))
-        self.entry_texto = ttk.Entry(cont_props)
+        # Línea separadora
+        linea = tk.Frame(frame_propiedades, bg="#9F8484", height=2)
+        linea.pack(fill="x", pady=(0, 10))
+
+        ttk.Label(frame_propiedades, text="Texto:").pack(anchor="w", pady=(0, 3))
+        self.entry_texto = ttk.Entry(frame_propiedades)
         self.entry_texto.pack(fill="x", pady=(0, 8))
 
-        ttk.Label(cont_props, text="Tamaño letra:").pack(anchor="w", pady=(0, 3))
-        self.entry_size = ttk.Entry(cont_props)
+        ttk.Label(frame_propiedades, text="Tamaño letra:").pack(anchor="w", pady=(0, 3))
+        self.entry_size = ttk.Entry(frame_propiedades)
         self.entry_size.pack(fill="x", pady=(0, 8))
 
-        ttk.Label(cont_props, text="Fuente:").pack(anchor="w", pady=(0, 3))
+        ttk.Label(frame_propiedades, text="Fuente:").pack(anchor="w", pady=(0, 3))
         self.combo_font = ttk.Combobox(
-            cont_props,
+            frame_propiedades,
             values=["Arial", "Times New Roman", "Courier New", "Verdana", "Segoe UI"],
             state="readonly"
         )
         self.combo_font.pack(fill="x", pady=(0, 8))
         self.combo_font.set("Arial")
 
-        ttk.Label(cont_props, text="Ancho:").pack(anchor="w", pady=(0, 3))
-        self.entry_width = ttk.Entry(cont_props)
+        ttk.Label(frame_propiedades, text="Ancho:").pack(anchor="w", pady=(0, 3))
+        self.entry_width = ttk.Entry(frame_propiedades)
         self.entry_width.pack(fill="x", pady=(0, 8))
 
-        ttk.Label(cont_props, text="Alto:").pack(anchor="w", pady=(0, 3))
-        self.entry_height = ttk.Entry(cont_props)
+        ttk.Label(frame_propiedades, text="Alto:").pack(anchor="w", pady=(0, 3))
+        self.entry_height = ttk.Entry(frame_propiedades)
         self.entry_height.pack(fill="x", pady=(0, 8))
 
         ttk.Button(
-            cont_props,
+            frame_propiedades,
             text="Color texto",
             command=self.cambiar_color_texto
         ).pack(fill="x", pady=4)
 
         ttk.Button(
-            cont_props,
+            frame_propiedades,
             text="Color fondo",
             command=self.cambiar_color_fondo
         ).pack(fill="x", pady=4)
 
         ttk.Button(
-            cont_props,
+            frame_propiedades,
             text="Aplicar",
             command=self.aplicar_propiedades
         ).pack(fill="x", pady=(12, 4))
 
         ttk.Button(
-            cont_props,
+            frame_propiedades,
             text="Eliminar componente",
             command=self.eliminar_componente
         ).pack(fill="x", pady=4)
 
+        # =========================
+        # TAB PROPIEDADES
+        # =========================
+        self.tab_uniones = ttk.Frame(tabs_der)
+        tabs_der.add(self.tab_uniones, text="Uniones")
+
+       
     # =========================
     # CREAR COMPONENTES
     # =========================

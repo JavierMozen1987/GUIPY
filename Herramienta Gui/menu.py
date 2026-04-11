@@ -64,7 +64,7 @@ class AppPrincipal:
             )
 
             alpha = imagen.split()[3]
-            alpha = alpha.point(lambda p: int(p * 0.5))
+            alpha = alpha.point(lambda p: int(p * 0.8))
             imagen.putalpha(alpha)
 
             self.img_tk = ImageTk.PhotoImage(imagen)
