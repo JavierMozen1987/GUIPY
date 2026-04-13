@@ -1,8 +1,8 @@
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, filedialog
 from ventana_principal import VentanaPrincipal
 from PIL import Image, ImageTk
-from explorador import crear_explorador
+from explorador import crear_explorador, cargar_archivos
 import os
 
 
@@ -12,24 +12,36 @@ class AppPrincipal:
         self.root = tk.Tk()
         self.root.title("CreaGUIPy")
         self.root.state("zoomed")
+        self.root.configure(bg="white")
 
         self.contador_archivos = 0
         self.ventana = None
 
+        # carpeta actual por defecto
+        self.carpeta_actual = os.path.join(os.getcwd(), "archivos")
+        os.makedirs(self.carpeta_actual, exist_ok=True)
+
         self.crear_menu()
 
         # CONTENEDOR PRINCIPAL
-        self.main_frame = tk.Frame(self.root)
+        self.main_frame = tk.Frame(self.root, bg="white")
         self.main_frame.pack(fill="both", expand=True)
 
         # PANEL IZQUIERDO (EXPLORADOR)
-        self.panel_izq = tk.Frame(self.main_frame, width=200)
+        self.panel_izq = tk.Frame(self.main_frame, width=220, bg="white")
         self.panel_izq.pack(side="left", fill="y")
+        self.panel_izq.pack_propagate(False)
 
         self.lista_archivos = crear_explorador(self.panel_izq)
 
+        linea = tk.Frame(self.main_frame, width=2, bg="#cccccc")
+        linea.pack(side="left", fill="y")
+
+        # cargar archivos iniciales
+        cargar_archivos(self.lista_archivos, self.carpeta_actual)
+
         # PANEL DERECHO (ÁREA DE TRABAJO)
-        self.area_trabajo = tk.Frame(self.main_frame)
+        self.area_trabajo = tk.Frame(self.main_frame, bg="white")
         self.area_trabajo.pack(side="right", fill="both", expand=True)
 
         # MOSTRAR FONDO CON LOGO
@@ -42,7 +54,8 @@ class AppPrincipal:
         menu_bar = tk.Menu(self.root)
 
         archivo_menu = tk.Menu(menu_bar, tearoff=0)
-        archivo_menu.add_command(label="Nuevo", command=self.abrir_disenador)
+        archivo_menu.add_command(label="Nuevo archivo", command=self.abrir_disenador)
+        archivo_menu.add_command(label="Abrir carpeta", command=self.abrir_carpeta)
         archivo_menu.add_command(label="Guardar archivo", command=self.guardar_codigo_python)
         archivo_menu.add_separator()
         archivo_menu.add_command(label="Salir", command=self.root.quit)
@@ -69,16 +82,20 @@ class AppPrincipal:
 
             self.img_tk = ImageTk.PhotoImage(imagen)
 
-            self.label_fondo = tk.Label(self.area_trabajo, image=self.img_tk)
+            self.label_fondo = tk.Label(
+                self.area_trabajo,
+                image=self.img_tk,
+                bg="white"
+            )
             self.label_fondo.place(relwidth=1, relheight=1)
 
         except Exception as e:
-            # Si no encuentra la imagen, no detiene el programa
             self.label_fondo = tk.Label(
                 self.area_trabajo,
                 text="CreaGUIPy",
                 font=("Arial", 28, "bold"),
-                fg="gray"
+                fg="gray",
+                bg="white"
             )
             self.label_fondo.place(relx=0.5, rely=0.5, anchor="center")
             print(f"No se pudo cargar la imagen de fondo: {e}")
@@ -94,13 +111,22 @@ class AppPrincipal:
         self.contador_archivos += 1
         nombre_archivo = f"archivo_{self.contador_archivos}.py"
 
-        self.lista_archivos.insert(tk.END, nombre_archivo)
-
         # eliminar fondo
         self.limpiar_contenido_central()
 
         # cargar diseñador
         self.ventana = VentanaPrincipal(self.area_trabajo)
+
+        # si tu clase VentanaPrincipal maneja nombre/ruta:
+        self.ventana.nombre_archivo = nombre_archivo
+        self.ventana.ruta_archivo = os.path.join(self.carpeta_actual, nombre_archivo)
+
+    def abrir_carpeta(self):
+        carpeta = filedialog.askdirectory(title="Seleccionar carpeta")
+
+        if carpeta:
+            self.carpeta_actual = carpeta
+            cargar_archivos(self.lista_archivos, self.carpeta_actual)
 
     # =========================
     # GUARDAR ARCHIVO
@@ -111,7 +137,18 @@ class AppPrincipal:
             return
 
         try:
+            # asegurar que guarde en la carpeta abierta
+            if hasattr(self.ventana, "nombre_archivo"):
+                self.ventana.ruta_archivo = os.path.join(
+                    self.carpeta_actual,
+                    self.ventana.nombre_archivo
+                )
+
             self.ventana.guardar_codigo_python()
+
+            # recargar explorador
+            cargar_archivos(self.lista_archivos, self.carpeta_actual)
+
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo guardar el archivo:\n{e}")
 
@@ -122,4 +159,3 @@ class AppPrincipal:
 if __name__ == "__main__":
     app = AppPrincipal()
     app.run()
-    
