@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk, colorchooser, font
 from componentes import *
 import re
-
+import copy
 
 class VentanaPrincipal:
 
@@ -16,8 +16,13 @@ class VentanaPrincipal:
         self.on_change = on_change
         self.iconos_componentes = {}
 
+        self.historial = []
+        self.historial_index = -1
+        self.restaurando_historial = False
+
         self.crear_ui()
         self.generar_codigo()
+        self.guardar_estado_historial()
 
     def crear_ui(self):
         style = ttk.Style()
@@ -317,6 +322,11 @@ class VentanaPrincipal:
 
         self.tab_uniones = ttk.Frame(tabs_der)
         tabs_der.add(self.tab_uniones, text="Uniones")
+        
+        self.root.bind_all("<Control-z>", self.deshacer)
+        self.root.bind_all("<Control-Z>", self.deshacer)
+        self.root.bind_all("<Delete>", self.eliminar_componente_evento)
+        self.root.bind_all("<BackSpace>", self.eliminar_componente_evento)
 
     def cargar_icono(self, ruta, size=(16, 16)):
         try:
@@ -356,6 +366,133 @@ class VentanaPrincipal:
         if self.text_codigo.edit_modified():
             self.marcar_modificado()
             self.text_codigo.edit_modified(False)
+
+    def guardar_estado_historial(self):
+        if self.restaurando_historial:
+            return
+
+        estado = []
+        for item in self.widgets:
+            estado.append({
+                "tipo": item["tipo"],
+                "x": item["x"],
+                "y": item["y"],
+                "props": copy.deepcopy(item["props"])
+            })
+
+        if self.historial and self.historial[self.historial_index] == estado:
+            return
+
+        if self.historial_index < len(self.historial) - 1:
+            self.historial = self.historial[:self.historial_index + 1]
+
+        self.historial.append(estado)
+        self.historial_index += 1
+
+    def restaurar_estado(self, estado):
+        self.restaurando_historial = True
+
+        self.limpiar_canvas()
+
+        for item in estado:
+            tipo = item["tipo"]
+            x = item["x"]
+            y = item["y"]
+            props = copy.deepcopy(item["props"])
+
+            if tipo == "Button":
+                widget = crear_boton(self.canvas)
+            elif tipo == "Label":
+                widget = crear_label(self.canvas)
+            elif tipo == "Entry":
+                widget = crear_entry(self.canvas)
+            elif tipo == "Check":
+                widget = crear_checkbox(self.canvas)
+            elif tipo == "Radio":
+                widget = crear_radiobutton(self.canvas)
+            elif tipo == "Combo":
+                widget = crear_combobox(self.canvas)
+            elif tipo == "Text":
+                widget = crear_textarea(self.canvas)
+            elif tipo == "Frame":
+                widget = tk.Frame(self.canvas, bg="lightgray", relief="solid", borderwidth=1)
+            else:
+                continue
+
+            widget.place(
+                x=x,
+                y=y,
+                width=props["width"],
+                height=props["height"]
+            )
+
+            data = {
+                "widget": widget,
+                "tipo": tipo,
+                "x": x,
+                "y": y,
+                "props": props
+            }
+
+            self.widgets.append(data)
+            self.aplicar_estilo_inicial(data)
+
+            try:
+                if tipo in ["Button", "Label", "Check", "Radio"] and props.get("fg"):
+                    widget.config(fg=props["fg"])
+                if tipo in ["Button", "Label", "Frame"] and props.get("bg"):
+                    widget.config(bg=props["bg"])
+            except Exception:
+                pass
+
+            widget.bind("<Button-1>", self.seleccionar)
+            widget.bind("<B1-Motion>", self.arrastrar)
+            widget.bind("<ButtonRelease-1>", self.finalizar_arrastre)
+
+        self.widget_actual = None
+        self.data_actual = None
+
+        self.entry_texto.delete(0, tk.END)
+        self.entry_size.delete(0, tk.END)
+        self.entry_width.delete(0, tk.END)
+        self.entry_height.delete(0, tk.END)
+
+        self.generar_codigo()
+        self.restaurando_historial = False
+
+    def deshacer(self, event=None):
+        widget_con_foco = self.root.focus_get()
+
+        if widget_con_foco == self.text_codigo:
+            return "break"
+
+        if self.historial_index <= 0:
+            return "break"
+
+        self.historial_index -= 1
+        estado = self.historial[self.historial_index]
+        self.restaurar_estado(estado)
+
+        return "break"
+
+    def eliminar_componente_evento(self, event=None):
+        widget_con_foco = self.root.focus_get()
+
+        if widget_con_foco in [
+            self.entry_texto,
+            self.entry_size,
+            self.entry_width,
+            self.entry_height,
+            self.combo_font,
+            self.text_codigo
+        ]:
+            return "break"
+
+        if not self.widget_actual:
+            return "break"
+
+        self.eliminar_componente()
+        return "break"
 
     def aplicar_propiedades_evento(self, event=None):
         self.aplicar_propiedades()
@@ -503,9 +640,13 @@ class VentanaPrincipal:
 
                 widget.bind("<Button-1>", self.seleccionar)
                 widget.bind("<B1-Motion>", self.arrastrar)
+                widget.bind("<ButtonRelease-1>", self.finalizar_arrastre)
 
             self.generar_codigo()
             self.text_codigo.edit_modified(False)
+            self.historial = []
+            self.historial_index = -1
+            self.guardar_estado_historial()
             return True
 
         except Exception:
@@ -577,9 +718,11 @@ class VentanaPrincipal:
 
         widget.bind("<Button-1>", self.seleccionar)
         widget.bind("<B1-Motion>", self.arrastrar)
-
+        widget.bind("<ButtonRelease-1>", self.finalizar_arrastre)
+       
         self.generar_codigo()
         self.marcar_modificado()
+        self.guardar_estado_historial()
 
     def aplicar_estilo_inicial(self, data):
         widget = data["widget"]
@@ -601,6 +744,8 @@ class VentanaPrincipal:
     def seleccionar(self, event):
         self.widget_actual = event.widget
         self.data_actual = None
+        self.root.focus_set()
+
 
         for item in self.widgets:
             if item["widget"] == self.widget_actual:
@@ -695,6 +840,7 @@ class VentanaPrincipal:
 
         self.generar_codigo()
         self.marcar_modificado()
+        self.guardar_estado_historial()
 
     def cambiar_color_texto(self):
         if not self.widget_actual or not self.data_actual:
@@ -714,6 +860,10 @@ class VentanaPrincipal:
 
         self.generar_codigo()
         self.marcar_modificado()
+        self.guardar_estado_historial()
+
+    def finalizar_arrastre(self, event=None):
+        self.guardar_estado_historial()
 
     def cambiar_color_fondo(self):
         if not self.widget_actual or not self.data_actual:
@@ -733,6 +883,7 @@ class VentanaPrincipal:
 
         self.generar_codigo()
         self.marcar_modificado()
+        self.guardar_estado_historial()
 
     def eliminar_componente(self):
         if not self.widget_actual:
@@ -754,6 +905,7 @@ class VentanaPrincipal:
 
         self.generar_codigo()
         self.marcar_modificado()
+        self.guardar_estado_historial()
 
     def generar_codigo(self):
         codigo = "import tkinter as tk\nfrom tkinter import ttk\n\n"
