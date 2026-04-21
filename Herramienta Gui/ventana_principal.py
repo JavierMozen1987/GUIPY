@@ -14,6 +14,7 @@ class VentanaPrincipal:
         self.nombre_archivo = "archivo.py"
         self.ruta_archivo = None
         self.on_change = on_change
+        self.iconos_componentes = {}
 
         self.crear_ui()
         self.generar_codigo()
@@ -47,7 +48,7 @@ class VentanaPrincipal:
         main_paned = ttk.PanedWindow(contenedor_principal, orient="horizontal")
         main_paned.pack(side="left", fill="both", expand=True)
 
-        panel_der = ttk.Frame(contenedor_principal, width=280)
+        panel_der = ttk.Frame(contenedor_principal, width=300)
         panel_der.pack(side="right", fill="y")
         panel_der.pack_propagate(False)
 
@@ -110,38 +111,138 @@ class VentanaPrincipal:
         tab_componentes = tk.Frame(tabs_der, bg="white")
         tabs_der.add(tab_componentes, text="Componentes")
 
-        contenedor_dividido = tk.PanedWindow(
-            tab_componentes,
-            orient="vertical",
-            bg="#ECE7E7",
-            sashwidth=5
-        )
-        contenedor_dividido.pack(fill="both", expand=True)
+        contenedor_lateral = tk.Frame(tab_componentes, bg="white")
+        contenedor_lateral.pack(fill="both", expand=True)
 
-        frame_componentes = tk.Frame(contenedor_dividido, bg="white")
-        contenedor_dividido.add(frame_componentes)
+        # =========================
+        # SECCIÓN COMPONENTES CON SCROLL
+        # =========================
+        frame_componentes_externo = tk.Frame(contenedor_lateral, bg="white", height=320)
+        frame_componentes_externo.pack(fill="x", side="top")
+        frame_componentes_externo.pack_propagate(False)
+
+        canvas_componentes = tk.Canvas(
+            frame_componentes_externo,
+            bg="white",
+            highlightthickness=0,
+            bd=0
+        )
+        scrollbar_componentes = ttk.Scrollbar(
+            frame_componentes_externo,
+            orient="vertical",
+            command=canvas_componentes.yview
+        )
+        canvas_componentes.configure(yscrollcommand=scrollbar_componentes.set)
+
+        scrollbar_componentes.pack(side="right", fill="y")
+        canvas_componentes.pack(side="left", fill="both", expand=True)
+
+        frame_componentes = tk.Frame(canvas_componentes, bg="white", padx=8, pady=8)
+        self.window_componentes = canvas_componentes.create_window(
+            (0, 0),
+            window=frame_componentes,
+            anchor="nw"
+        )
+
+        def actualizar_scroll_componentes(event=None):
+            canvas_componentes.configure(scrollregion=canvas_componentes.bbox("all"))
+
+        def ajustar_ancho_componentes(event):
+            canvas_componentes.itemconfig(self.window_componentes, width=event.width)
+
+        frame_componentes.bind("<Configure>", actualizar_scroll_componentes)
+        canvas_componentes.bind("<Configure>", ajustar_ancho_componentes)
+
+        def on_mousewheel_componentes(event):
+            canvas_componentes.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        def bind_mousewheel_componentes(event):
+            canvas_componentes.bind_all("<MouseWheel>", on_mousewheel_componentes)
+
+        def unbind_mousewheel_componentes(event):
+            canvas_componentes.unbind_all("<MouseWheel>")
+
+        frame_componentes.bind("<Enter>", bind_mousewheel_componentes)
+        frame_componentes.bind("<Leave>", unbind_mousewheel_componentes)
+
+        tk.Label(
+            frame_componentes,
+            text="Componentes",
+            bg="white",
+            font=("Segoe UI", 10, "bold"),
+            anchor="w"
+        ).pack(fill="x", pady=(0, 6))
+
+        linea_componentes = tk.Frame(frame_componentes, bg="#9F8484", height=2)
+        linea_componentes.pack(fill="x", pady=(0, 10))
 
         componentes = [
-            ("Botón", "Button"),
-            ("Label", "Label"),
-            ("Input", "Entry"),
-            ("CheckBox", "Check"),
-            ("RadioButton", "Radio"),
-            ("ComboBox", "Combo"),
-            ("TextArea", "Text"),
-            ("Frame", "Frame")
+            ("Botón", "Button", None),
+            ("Label", "Label", None),
+            ("Input", "Entry", None),
+            ("CheckBox", "Check", None),
+            ("RadioButton", "Radio", None),
+            ("ComboBox", "Combo", None),
+            ("TextArea", "Text", None),
+            ("Frame", "Frame", None)
         ]
 
-        for nombre, tipo in componentes:
-            btn = ttk.Button(
+        for nombre, tipo, ruta_icono in componentes:
+            icono = self.cargar_icono(ruta_icono) if ruta_icono else None
+
+            btn = tk.Button(
                 frame_componentes,
                 text=nombre,
+                image=icono,
+                compound="left",
+                anchor="center",
+                justify="center",
+                bg="white",
+                activebackground="#F5F5F5",
+                relief="solid",
+                bd=1,
+                padx=10,
+                pady=8,
+                font=("Segoe UI", 9),
+                cursor="hand2",
                 command=lambda t=tipo: self.crear_componente(t)
             )
-            btn.pack(fill="x", padx=5, pady=5)
+            btn.image = icono
+            btn.pack(fill="x", pady=4)
 
-        frame_propiedades = tk.Frame(contenedor_dividido, bg="white", padx=10, pady=10)
-        contenedor_dividido.add(frame_propiedades)
+        separador_fijo = tk.Frame(contenedor_lateral, bg="#D0D0D0", height=2)
+        separador_fijo.pack(fill="x", pady=(10, 0))
+
+        # =========================
+        # SECCIÓN PROPIEDADES CON SCROLL
+        # =========================
+        frame_propiedades_externo = tk.Frame(contenedor_lateral, bg="white")
+        frame_propiedades_externo.pack(fill="both", expand=True)
+
+        canvas_props = tk.Canvas(
+            frame_propiedades_externo,
+            bg="white",
+            highlightthickness=0,
+            bd=0
+        )
+        scrollbar_props = ttk.Scrollbar(
+            frame_propiedades_externo,
+            orient="vertical",
+            command=canvas_props.yview
+        )
+        canvas_props.configure(yscrollcommand=scrollbar_props.set)
+
+        scrollbar_props.pack(side="right", fill="y")
+        canvas_props.pack(side="left", fill="both", expand=True)
+
+        frame_propiedades = tk.Frame(canvas_props, bg="white", padx=10, pady=10)
+        self.window_propiedades = canvas_props.create_window(
+            (0, 0),
+            window=frame_propiedades,
+            anchor="nw"
+        )
+
+        self._configurar_scroll_propiedades(canvas_props, frame_propiedades)
 
         tk.Label(
             frame_propiedades,
@@ -153,15 +254,19 @@ class VentanaPrincipal:
         linea = tk.Frame(frame_propiedades, bg="#9F8484", height=2)
         linea.pack(fill="x", pady=(0, 10))
 
-        ttk.Label(frame_propiedades, text="Texto:").pack(anchor="w", pady=(0, 3))
+        tk.Label(frame_propiedades, text="Texto:", bg="white").pack(anchor="w", pady=(0, 3))
         self.entry_texto = ttk.Entry(frame_propiedades)
         self.entry_texto.pack(fill="x", pady=(0, 8))
+        self.entry_texto.bind("<Return>", self.aplicar_propiedades_evento)
+        self.entry_texto.bind("<FocusOut>", self.aplicar_propiedades_evento)
 
-        ttk.Label(frame_propiedades, text="Tamaño letra:").pack(anchor="w", pady=(0, 3))
+        tk.Label(frame_propiedades, text="Tamaño letra:", bg="white").pack(anchor="w", pady=(0, 3))
         self.entry_size = ttk.Entry(frame_propiedades)
         self.entry_size.pack(fill="x", pady=(0, 8))
+        self.entry_size.bind("<Return>", self.aplicar_propiedades_evento)
+        self.entry_size.bind("<FocusOut>", self.aplicar_propiedades_evento)
 
-        ttk.Label(frame_propiedades, text="Fuente:").pack(anchor="w", pady=(0, 3))
+        tk.Label(frame_propiedades, text="Fuente:", bg="white").pack(anchor="w", pady=(0, 3))
         self.combo_font = ttk.Combobox(
             frame_propiedades,
             values=["Arial", "Times New Roman", "Courier New", "Verdana", "Segoe UI"],
@@ -169,14 +274,20 @@ class VentanaPrincipal:
         )
         self.combo_font.pack(fill="x", pady=(0, 8))
         self.combo_font.set("Arial")
+        self.combo_font.bind("<<ComboboxSelected>>", self.aplicar_propiedades_evento)
+        self.combo_font.bind("<Return>", self.aplicar_propiedades_evento)
 
-        ttk.Label(frame_propiedades, text="Ancho:").pack(anchor="w", pady=(0, 3))
+        tk.Label(frame_propiedades, text="Ancho:", bg="white").pack(anchor="w", pady=(0, 3))
         self.entry_width = ttk.Entry(frame_propiedades)
         self.entry_width.pack(fill="x", pady=(0, 8))
+        self.entry_width.bind("<Return>", self.aplicar_propiedades_evento)
+        self.entry_width.bind("<FocusOut>", self.aplicar_propiedades_evento)
 
-        ttk.Label(frame_propiedades, text="Alto:").pack(anchor="w", pady=(0, 3))
+        tk.Label(frame_propiedades, text="Alto:", bg="white").pack(anchor="w", pady=(0, 3))
         self.entry_height = ttk.Entry(frame_propiedades)
         self.entry_height.pack(fill="x", pady=(0, 8))
+        self.entry_height.bind("<Return>", self.aplicar_propiedades_evento)
+        self.entry_height.bind("<FocusOut>", self.aplicar_propiedades_evento)
 
         ttk.Button(
             frame_propiedades,
@@ -202,8 +313,40 @@ class VentanaPrincipal:
             command=self.eliminar_componente
         ).pack(fill="x", pady=4)
 
+        tk.Frame(frame_propiedades, bg="white", height=40).pack(fill="x")
+
         self.tab_uniones = ttk.Frame(tabs_der)
         tabs_der.add(self.tab_uniones, text="Uniones")
+
+    def cargar_icono(self, ruta, size=(16, 16)):
+        try:
+            img = tk.PhotoImage(file=ruta)
+            self.iconos_componentes[ruta] = img
+            return img
+        except Exception:
+            return None
+
+    def _configurar_scroll_propiedades(self, canvas, frame_interno):
+        def actualizar_scroll(event=None):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+
+        def ajustar_ancho(event):
+            canvas.itemconfig(self.window_propiedades, width=event.width)
+
+        frame_interno.bind("<Configure>", actualizar_scroll)
+        canvas.bind("<Configure>", ajustar_ancho)
+
+        def on_mousewheel(event):
+            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        def bind_mousewheel(event):
+            canvas.bind_all("<MouseWheel>", on_mousewheel)
+
+        def unbind_mousewheel(event):
+            canvas.unbind_all("<MouseWheel>")
+
+        frame_interno.bind("<Enter>", bind_mousewheel)
+        frame_interno.bind("<Leave>", unbind_mousewheel)
 
     def marcar_modificado(self):
         if self.on_change:
@@ -214,13 +357,20 @@ class VentanaPrincipal:
             self.marcar_modificado()
             self.text_codigo.edit_modified(False)
 
+    def aplicar_propiedades_evento(self, event=None):
+        self.aplicar_propiedades()
+
     @staticmethod
     def es_archivo_compatible(ruta):
         try:
             with open(ruta, "r", encoding="utf-8") as f:
                 contenido = f.read()
 
-            imports = re.findall(r'^\s*(import\s+[^\n]+|from\s+[^\n]+\s+import\s+[^\n]+)', contenido, re.MULTILINE)
+            imports = re.findall(
+                r'^\s*(import\s+[^\n]+|from\s+[^\n]+\s+import\s+[^\n]+)',
+                contenido,
+                re.MULTILINE
+            )
 
             permitidos = {
                 "import tkinter as tk",
@@ -231,7 +381,6 @@ class VentanaPrincipal:
                 if imp.strip() not in permitidos:
                     return False
 
-            # Debe tener al menos la base de tu generador
             if "root = tk.Tk()" not in contenido:
                 return False
 
@@ -261,7 +410,6 @@ class VentanaPrincipal:
             self.text_codigo.insert("1.0", codigo)
             self.text_codigo.edit_modified(False)
 
-            # Detectar widgets creados
             patron_widget = re.compile(
                 r'(widget_\d+)\s*=\s*(tk\.Button|tk\.Label|tk\.Entry|tk\.Checkbutton|tk\.Radiobutton|ttk\.Combobox|tk\.Text|tk\.Frame)\(root(.*?)\)\s*'
                 r'(?:\n\1\.current\(0\))?'
@@ -270,7 +418,6 @@ class VentanaPrincipal:
             )
 
             for match in patron_widget.finditer(codigo):
-                nombre_var = match.group(1)
                 clase = match.group(2)
                 config_str = match.group(3)
                 x = int(match.group(4))
@@ -316,22 +463,18 @@ class VentanaPrincipal:
                     "height": height
                 }
 
-                # text
                 m = re.search(r'text="([^"]*)"', config_str)
                 if m:
                     props["text"] = m.group(1)
 
-                # fg
                 m = re.search(r'fg="([^"]*)"', config_str)
                 if m:
                     props["fg"] = m.group(1)
 
-                # bg
                 m = re.search(r'bg="([^"]*)"', config_str)
                 if m:
                     props["bg"] = m.group(1)
 
-                # font
                 m = re.search(r'font=\("([^"]+)",\s*(\d+)\)', config_str)
                 if m:
                     props["font_family"] = m.group(1)
@@ -351,9 +494,8 @@ class VentanaPrincipal:
                 self.aplicar_estilo_inicial(data)
 
                 try:
-                    if tipo in ["Button", "Label", "Check", "Radio"]:
-                        if props["fg"]:
-                            widget.config(fg=props["fg"])
+                    if tipo in ["Button", "Label", "Check", "Radio"] and props["fg"]:
+                        widget.config(fg=props["fg"])
                     if tipo in ["Button", "Label", "Frame"] and props["bg"]:
                         widget.config(bg=props["bg"])
                 except Exception:
