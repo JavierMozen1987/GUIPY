@@ -3,6 +3,8 @@ from tkinter import ttk, colorchooser, font
 from componentes import *
 import re
 import copy
+from PIL import Image, ImageTk
+import os
 
 class VentanaPrincipal:
 
@@ -106,9 +108,73 @@ class VentanaPrincipal:
         frame_codigo = ttk.Frame(tabs)
         tabs.add(frame_codigo, text="Código")
 
-        self.text_codigo = tk.Text(frame_codigo, wrap="none")
-        self.text_codigo.pack(fill="both", expand=True)
-        self.text_codigo.bind("<<Modified>>", self.on_text_modified)
+        contenedor_codigo = tk.Frame(frame_codigo, bg="white")
+        contenedor_codigo.pack(fill="both", expand=True)
+
+        barra_codigo = tk.Frame(contenedor_codigo, bg="#F3F3F3", height=36)
+        barra_codigo.pack(fill="x")
+        barra_codigo.pack_propagate(False)
+
+        tk.Label(
+            barra_codigo,
+            text="archivo.py",
+            bg="#F3F3F3",
+            fg="#333333",
+            font=("Segoe UI", 10, "bold")
+        ).pack(side="left", padx=10)
+
+        self.btn_copiar_codigo = tk.Button(
+            barra_codigo,
+            text="📋 Copiar",
+            bg="#F3F3F3",
+            fg="#333333",
+            activebackground="#E8E8E8",
+            activeforeground="#111111",
+            relief="flat",
+            bd=0,
+            font=("Segoe UI", 9),
+            cursor="hand2",
+            command=self.copiar_codigo
+        )
+        self.btn_copiar_codigo.pack(side="right", padx=8, pady=4)
+
+        editor_container = tk.Frame(contenedor_codigo, bg="white")
+        editor_container.pack(fill="both", expand=True)
+
+        # Marca de agua
+        self.label_marca_codigo = None
+        self.img_marca_codigo = None
+        self.mostrar_marca_agua_codigo(editor_container)
+
+        scroll_y_codigo = ttk.Scrollbar(editor_container, orient="vertical")
+        scroll_x_codigo = ttk.Scrollbar(editor_container, orient="horizontal")
+
+        self.text_codigo = tk.Text(
+            editor_container,
+            wrap="none",
+            undo=False,
+            bg="white",
+            fg="#000000",
+            insertbackground="black",
+            selectbackground="#D7E9FF",
+            selectforeground="black",
+            relief="flat",
+            bd=0,
+            padx=12,
+            pady=10,
+            font=("Consolas", 11),
+            yscrollcommand=scroll_y_codigo.set,
+            xscrollcommand=scroll_x_codigo.set
+        )
+
+        scroll_y_codigo.config(command=self.text_codigo.yview)
+        scroll_x_codigo.config(command=self.text_codigo.xview)
+
+        scroll_y_codigo.pack(side="right", fill="y")
+        scroll_x_codigo.pack(side="bottom", fill="x")
+        self.text_codigo.pack(side="left", fill="both", expand=True)
+
+        self.configurar_tags_codigo()
 
         tabs_der = ttk.Notebook(panel_der)
         tabs_der.pack(fill="both", expand=True)
@@ -965,9 +1031,11 @@ class VentanaPrincipal:
 
         codigo += "root.mainloop()"
 
+        self.text_codigo.config(state="normal")
         self.text_codigo.delete("1.0", tk.END)
-        self.text_codigo.insert(tk.END, codigo)
-        self.text_codigo.edit_modified(False)
+        self.text_codigo.insert("1.0", codigo)
+        self.resaltar_codigo()
+        self.text_codigo.config(state="disabled")
 
     def guardar_codigo_python(self, ruta):
         codigo = self.text_codigo.get("1.0", tk.END).strip()
@@ -977,3 +1045,110 @@ class VentanaPrincipal:
 
         with open(ruta, "w", encoding="utf-8") as archivo:
             archivo.write(codigo)
+
+    def configurar_tags_codigo(self):
+        self.text_codigo.tag_configure("keyword", foreground="#0000FF")
+        self.text_codigo.tag_configure("string", foreground="#A31515")
+        self.text_codigo.tag_configure("comment", foreground="#008000")
+        self.text_codigo.tag_configure("number", foreground="#098658")
+        self.text_codigo.tag_configure("builtin", foreground="#267F99")
+        self.text_codigo.tag_configure("class_name", foreground="#2B91AF")
+        self.text_codigo.tag_configure("function_name", foreground="#795E26")
+
+    def resaltar_codigo(self):
+        for tag in self.text_codigo.tag_names():
+            if tag in ["keyword", "string", "comment", "number", "builtin", "class_name", "function_name"]:
+                self.text_codigo.tag_remove(tag, "1.0", tk.END)
+
+        contenido = self.text_codigo.get("1.0", tk.END)
+
+        keywords = [
+            "import", "from", "as", "class", "def", "return", "if", "elif", "else",
+            "try", "except", "for", "in", "while", "True", "False", "None", "with",
+            "break", "continue", "pass"
+        ]
+
+        builtins = [
+            "tk", "ttk", "Button", "Label", "Entry", "Frame", "Text", "Combobox"
+        ]
+
+        for palabra in keywords:
+            patron = rf"\b{re.escape(palabra)}\b"
+            for match in re.finditer(patron, contenido):
+                inicio = f"1.0+{match.start()}c"
+                fin = f"1.0+{match.end()}c"
+                self.text_codigo.tag_add("keyword", inicio, fin)
+
+        for palabra in builtins:
+            patron = rf"\b{re.escape(palabra)}\b"
+            for match in re.finditer(patron, contenido):
+                inicio = f"1.0+{match.start()}c"
+                fin = f"1.0+{match.end()}c"
+                self.text_codigo.tag_add("builtin", inicio, fin)
+
+        for match in re.finditer(r'"[^"\n]*"|\'[^\'\n]*\'', contenido):
+            inicio = f"1.0+{match.start()}c"
+            fin = f"1.0+{match.end()}c"
+            self.text_codigo.tag_add("string", inicio, fin)
+
+        for match in re.finditer(r"#.*", contenido):
+            inicio = f"1.0+{match.start()}c"
+            fin = f"1.0+{match.end()}c"
+            self.text_codigo.tag_add("comment", inicio, fin)
+
+        for match in re.finditer(r"\b\d+\b", contenido):
+            inicio = f"1.0+{match.start()}c"
+            fin = f"1.0+{match.end()}c"
+            self.text_codigo.tag_add("number", inicio, fin)
+
+        for match in re.finditer(r"\bclass\s+([A-Za-z_][A-Za-z0-9_]*)", contenido):
+            inicio = f"1.0+{match.start(1)}c"
+            fin = f"1.0+{match.end(1)}c"
+            self.text_codigo.tag_add("class_name", inicio, fin)
+
+        for match in re.finditer(r"\bdef\s+([A-Za-z_][A-Za-z0-9_]*)", contenido):
+            inicio = f"1.0+{match.start(1)}c"
+            fin = f"1.0+{match.end(1)}c"
+            self.text_codigo.tag_add("function_name", inicio, fin)
+
+    def copiar_codigo(self):
+        codigo = self.text_codigo.get("1.0", tk.END).strip()
+        self.root.clipboard_clear()
+        self.root.clipboard_append(codigo)
+        self.root.update()
+
+        self.btn_copiar_codigo.config(text="✅ Copiado")
+        self.root.after(1200, lambda: self.btn_copiar_codigo.config(text="📋 Copiar"))
+        
+    def mostrar_marca_agua_codigo(self, parent):
+        try:
+            ruta_base = os.path.dirname(__file__)
+            ruta_imagen = os.path.join(ruta_base, "imagenes", "marcade_agua.png")
+
+            imagen = Image.open(ruta_imagen).convert("RGBA")
+            imagen = imagen.resize((420, 420))
+
+            alpha = imagen.split()[3]
+            alpha = alpha.point(lambda p: int(p * 1))  # opacidad baja
+            imagen.putalpha(alpha)
+
+            self.img_marca_codigo = ImageTk.PhotoImage(imagen)
+
+            self.label_marca_codigo = tk.Label(
+                parent,
+                image=self.img_marca_codigo,
+                bg="white",
+                bd=0
+            )
+            self.label_marca_codigo.place(relx=0.5, rely=0.5, anchor="center")
+
+        except Exception as e:
+            self.label_marca_codigo = tk.Label(
+                parent,
+                text="CreaGUIPy",
+                font=("Arial", 28, "bold"),
+                fg="#E6E6E6",
+                bg="white"
+            )
+            self.label_marca_codigo.place(relx=0.5, rely=0.5, anchor="center")
+            print(f"No se pudo cargar la marca de agua del código: {e}")
