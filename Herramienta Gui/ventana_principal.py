@@ -1,10 +1,11 @@
 import tkinter as tk
-from tkinter import ttk, colorchooser, font
+from tkinter import ttk, colorchooser, font, filedialog, messagebox
 from componentes import *
 import re
 import copy
 from PIL import Image, ImageTk
 import os
+
 
 class VentanaPrincipal:
 
@@ -17,6 +18,15 @@ class VentanaPrincipal:
         self.ruta_archivo = None
         self.on_change = on_change
         self.iconos_componentes = {}
+
+        # =========================
+        # UNIONES / PRESENTACIÓN
+        # =========================
+        self.pantallas_unidas = []
+        self.indice_presentacion = 0
+        self.ventana_presentacion = None
+        self.frame_preview = None
+        self.lbl_titulo_presentacion = None
 
         self.historial = []
         self.historial_index = -1
@@ -141,7 +151,6 @@ class VentanaPrincipal:
         editor_container = tk.Frame(contenedor_codigo, bg="white")
         editor_container.pack(fill="both", expand=True)
 
-        # Marca de agua
         self.label_marca_codigo = None
         self.img_marca_codigo = None
         self.mostrar_marca_agua_codigo(editor_container)
@@ -185,9 +194,6 @@ class VentanaPrincipal:
         contenedor_lateral = tk.Frame(tab_componentes, bg="white")
         contenedor_lateral.pack(fill="both", expand=True)
 
-        # =========================
-        # SECCIÓN COMPONENTES CON SCROLL
-        # =========================
         frame_componentes_externo = tk.Frame(contenedor_lateral, bg="white", height=320)
         frame_componentes_externo.pack(fill="x", side="top")
         frame_componentes_externo.pack_propagate(False)
@@ -284,9 +290,6 @@ class VentanaPrincipal:
         separador_fijo = tk.Frame(contenedor_lateral, bg="#D0D0D0", height=2)
         separador_fijo.pack(fill="x", pady=(10, 0))
 
-        # =========================
-        # SECCIÓN PROPIEDADES CON SCROLL
-        # =========================
         frame_propiedades_externo = tk.Frame(contenedor_lateral, bg="white")
         frame_propiedades_externo.pack(fill="both", expand=True)
 
@@ -388,11 +391,437 @@ class VentanaPrincipal:
 
         self.tab_uniones = ttk.Frame(tabs_der)
         tabs_der.add(self.tab_uniones, text="Uniones")
-        
+
+        self.crear_panel_uniones()
+
         self.root.bind_all("<Control-z>", self.deshacer)
         self.root.bind_all("<Control-Z>", self.deshacer)
         self.root.bind_all("<Delete>", self.eliminar_componente_evento)
         self.root.bind_all("<BackSpace>", self.eliminar_componente_evento)
+
+    # ==================================================
+    # MÓDULO DE UNIONES
+    # ==================================================
+
+    def crear_panel_uniones(self):
+        contenedor = tk.Frame(self.tab_uniones, bg="white", padx=10, pady=10)
+        contenedor.pack(fill="both", expand=True)
+
+        tk.Label(
+            contenedor,
+            text="Uniones",
+            bg="white",
+            font=("Segoe UI", 11, "bold")
+        ).pack(anchor="w")
+
+        tk.Label(
+            contenedor,
+            text="Agrega archivos de interfaces para crear una secuencia visual de navegación.",
+            bg="white",
+            fg="#555555",
+            wraplength=260,
+            justify="left",
+            font=("Segoe UI", 9)
+        ).pack(anchor="w", pady=(4, 10))
+
+        linea = tk.Frame(contenedor, bg="#9F8484", height=2)
+        linea.pack(fill="x", pady=(0, 10))
+
+        ttk.Button(
+            contenedor,
+            text="Agregar pantalla",
+            command=self.agregar_pantalla_union
+        ).pack(fill="x", pady=3)
+
+        ttk.Button(
+            contenedor,
+            text="Quitar última pantalla",
+            command=self.quitar_ultima_pantalla_union
+        ).pack(fill="x", pady=3)
+
+        ttk.Button(
+            contenedor,
+            text="Limpiar uniones",
+            command=self.limpiar_uniones
+        ).pack(fill="x", pady=3)
+
+        ttk.Button(
+            contenedor,
+            text="▶ Run enlaces",
+            command=self.run_uniones
+        ).pack(fill="x", pady=(10, 3))
+
+        tk.Label(
+            contenedor,
+            text="Flujo de pantallas:",
+            bg="white",
+            font=("Segoe UI", 9, "bold")
+        ).pack(anchor="w", pady=(15, 5))
+
+        frame_canvas = tk.Frame(contenedor, bg="white")
+        frame_canvas.pack(fill="both", expand=True)
+
+        self.canvas_uniones = tk.Canvas(
+            frame_canvas,
+            bg="#F7F7F7",
+            highlightthickness=1,
+            highlightbackground="#CCCCCC",
+            height=260
+        )
+        self.canvas_uniones.pack(side="left", fill="both", expand=True)
+
+        scroll_y = ttk.Scrollbar(
+            frame_canvas,
+            orient="vertical",
+            command=self.canvas_uniones.yview
+        )
+        scroll_y.pack(side="right", fill="y")
+
+        self.canvas_uniones.configure(yscrollcommand=scroll_y.set)
+
+        self.dibujar_uniones()
+
+    def agregar_pantalla_union(self):
+        ruta = filedialog.askopenfilename(
+            title="Seleccionar pantalla",
+            filetypes=[("Archivos Python", "*.py")]
+        )
+
+        if not ruta:
+            return
+
+        if not self.es_archivo_compatible(ruta):
+            messagebox.showerror(
+                "Archivo no compatible",
+                "El archivo seleccionado no parece haber sido creado con esta herramienta."
+            )
+            return
+
+        nombre = os.path.basename(ruta)
+
+        pantalla = {
+            "nombre": nombre,
+            "ruta": ruta
+        }
+
+        self.pantallas_unidas.append(pantalla)
+        self.dibujar_uniones()
+
+    def quitar_ultima_pantalla_union(self):
+        if not self.pantallas_unidas:
+            messagebox.showwarning(
+                "Sin pantallas",
+                "No hay pantallas para quitar."
+            )
+            return
+
+        self.pantallas_unidas.pop()
+        self.dibujar_uniones()
+
+    def limpiar_uniones(self):
+        if not self.pantallas_unidas:
+            return
+
+        respuesta = messagebox.askyesno(
+            "Limpiar uniones",
+            "¿Deseas eliminar todas las pantallas agregadas?"
+        )
+
+        if respuesta:
+            self.pantallas_unidas.clear()
+            self.dibujar_uniones()
+
+    def dibujar_uniones(self):
+        if not hasattr(self, "canvas_uniones"):
+            return
+
+        self.canvas_uniones.delete("all")
+
+        if not self.pantallas_unidas:
+            self.canvas_uniones.create_text(
+                135,
+                120,
+                text="Aún no hay pantallas agregadas.\nPresiona 'Agregar pantalla'.",
+                fill="#777777",
+                font=("Segoe UI", 9),
+                justify="center",
+                width=220
+            )
+            return
+
+        x = 25
+        y = 25
+        ancho = 210
+        alto = 70
+        espacio_y = 95
+
+        for i, pantalla in enumerate(self.pantallas_unidas):
+            y_actual = y + i * espacio_y
+
+            self.canvas_uniones.create_rectangle(
+                x,
+                y_actual,
+                x + ancho,
+                y_actual + alto,
+                fill="white",
+                outline="#9F8484",
+                width=2
+            )
+
+            self.canvas_uniones.create_text(
+                x + 15,
+                y_actual + 18,
+                text=f"Pantalla {i + 1}",
+                anchor="w",
+                font=("Segoe UI", 9, "bold"),
+                fill="#333333"
+            )
+
+            self.canvas_uniones.create_text(
+                x + 15,
+                y_actual + 43,
+                text=pantalla["nombre"],
+                anchor="w",
+                font=("Segoe UI", 9),
+                fill="#333333",
+                width=180
+            )
+
+            if i < len(self.pantallas_unidas) - 1:
+                self.canvas_uniones.create_line(
+                    x + ancho / 2,
+                    y_actual + alto,
+                    x + ancho / 2,
+                    y_actual + espacio_y,
+                    arrow=tk.LAST,
+                    width=2,
+                    fill="#333333"
+                )
+
+        self.canvas_uniones.configure(
+            scrollregion=self.canvas_uniones.bbox("all")
+        )
+
+    def run_uniones(self):
+        if not self.pantallas_unidas:
+            messagebox.showwarning(
+                "Sin pantallas",
+                "Primero agrega pantallas en la pestaña Uniones."
+            )
+            return
+
+        self.indice_presentacion = 0
+
+        self.ventana_presentacion = tk.Toplevel(self.root)
+        self.ventana_presentacion.title("Run enlaces")
+        self.ventana_presentacion.geometry("900x620")
+        self.ventana_presentacion.configure(bg="#ECE7E7")
+
+        barra = tk.Frame(self.ventana_presentacion, bg="#F3F3F3", height=45)
+        barra.pack(fill="x")
+        barra.pack_propagate(False)
+
+        self.lbl_titulo_presentacion = tk.Label(
+            barra,
+            text="",
+            bg="#F3F3F3",
+            fg="#333333",
+            font=("Segoe UI", 11, "bold")
+        )
+        self.lbl_titulo_presentacion.pack(side="left", padx=15)
+
+        contenedor = tk.Frame(self.ventana_presentacion, bg="#ECE7E7")
+        contenedor.pack(fill="both", expand=True, padx=20, pady=20)
+
+        self.frame_preview = tk.Frame(
+            contenedor,
+            bg="white",
+            relief="solid",
+            borderwidth=1
+        )
+        self.frame_preview.pack(fill="both", expand=True)
+
+        controles = tk.Frame(self.ventana_presentacion, bg="#ECE7E7", height=55)
+        controles.pack(fill="x")
+        controles.pack_propagate(False)
+
+        ttk.Button(
+            controles,
+            text="Anterior",
+            command=self.presentacion_anterior
+        ).pack(side="left", padx=20, pady=10)
+
+        ttk.Button(
+            controles,
+            text="Siguiente",
+            command=self.presentacion_siguiente
+        ).pack(side="left", padx=10, pady=10)
+
+        ttk.Button(
+            controles,
+            text="Cerrar",
+            command=self.ventana_presentacion.destroy
+        ).pack(side="right", padx=20, pady=10)
+
+        self.mostrar_pantalla_presentacion()
+
+    def presentacion_siguiente(self):
+        if self.indice_presentacion < len(self.pantallas_unidas) - 1:
+            self.indice_presentacion += 1
+            self.mostrar_pantalla_presentacion()
+
+    def presentacion_anterior(self):
+        if self.indice_presentacion > 0:
+            self.indice_presentacion -= 1
+            self.mostrar_pantalla_presentacion()
+
+    def mostrar_pantalla_presentacion(self):
+        for widget in self.frame_preview.winfo_children():
+            widget.destroy()
+
+        pantalla = self.pantallas_unidas[self.indice_presentacion]
+        ruta = pantalla["ruta"]
+
+        total = len(self.pantallas_unidas)
+        actual = self.indice_presentacion + 1
+
+        self.lbl_titulo_presentacion.config(
+            text=f"Pantalla {actual} de {total}: {pantalla['nombre']}"
+        )
+
+        try:
+            with open(ruta, "r", encoding="utf-8") as f:
+                codigo = f.read()
+
+            ventana_mock = tk.Frame(
+                self.frame_preview,
+                bg="white",
+                relief="solid",
+                borderwidth=1
+            )
+            ventana_mock.place(relx=0.5, rely=0.5, anchor="center", width=720, height=480)
+
+            barra_titulo = tk.Frame(ventana_mock, bg="#ECE7E7", height=30)
+            barra_titulo.pack(fill="x")
+
+            tk.Label(
+                barra_titulo,
+                text=pantalla["nombre"],
+                bg="#ECE7E7",
+                fg="#333333",
+                font=("Segoe UI", 9)
+            ).pack(side="left", padx=10)
+
+            frame_botones = tk.Frame(barra_titulo, bg="#ECE7E7")
+            frame_botones.pack(side="right", padx=5)
+
+            tk.Label(frame_botones, text="—", bg="#ECE7E7", width=3).pack(side="left")
+            tk.Label(frame_botones, text="□", bg="#ECE7E7", width=3).pack(side="left")
+            tk.Label(frame_botones, text="✕", bg="#ECE7E7", width=3).pack(side="left")
+
+            area = tk.Frame(ventana_mock, bg="white")
+            area.pack(fill="both", expand=True)
+
+            patron_widget = re.compile(
+                r'(widget_\d+)\s*=\s*'
+                r'(tk\.Button|tk\.Label|tk\.Entry|tk\.Checkbutton|tk\.Radiobutton|ttk\.Combobox|tk\.Text|tk\.Frame)'
+                r'\(root(.*?)\)\s*'
+                r'(?:\n\1\.current\(0\))?'
+                r'.*?\n\1\.place\(x=(\d+), y=(\d+), width=(\d+), height=(\d+)\)',
+                re.DOTALL
+            )
+
+            for match in patron_widget.finditer(codigo):
+                clase = match.group(2)
+                config_str = match.group(3)
+
+                x = int(match.group(4))
+                y = int(match.group(5))
+                width = int(match.group(6))
+                height = int(match.group(7))
+
+                texto = ""
+                fg = ""
+                bg = ""
+                font_family = "Arial"
+                font_size = 10
+
+                m = re.search(r'text="([^"]*)"', config_str)
+                if m:
+                    texto = m.group(1)
+
+                m = re.search(r'fg="([^"]*)"', config_str)
+                if m:
+                    fg = m.group(1)
+
+                m = re.search(r'bg="([^"]*)"', config_str)
+                if m:
+                    bg = m.group(1)
+
+                m = re.search(r'font=\("([^"]+)",\s*(\d+)\)', config_str)
+                if m:
+                    font_family = m.group(1)
+                    font_size = int(m.group(2))
+
+                fuente = (font_family, font_size)
+
+                if clase == "tk.Button":
+                    widget = tk.Button(area, text=texto, font=fuente)
+
+                elif clase == "tk.Label":
+                    widget = tk.Label(area, text=texto, font=fuente)
+
+                elif clase == "tk.Entry":
+                    widget = tk.Entry(area)
+
+                elif clase == "tk.Checkbutton":
+                    widget = tk.Checkbutton(area, text=texto, font=fuente)
+
+                elif clase == "tk.Radiobutton":
+                    widget = tk.Radiobutton(area, text=texto, font=fuente)
+
+                elif clase == "ttk.Combobox":
+                    widget = ttk.Combobox(area, values=["Opción 1", "Opción 2"])
+                    widget.current(0)
+
+                elif clase == "tk.Text":
+                    widget = tk.Text(area)
+
+                elif clase == "tk.Frame":
+                    widget = tk.Frame(
+                        area,
+                        bg=bg if bg else "lightgray",
+                        relief="solid",
+                        borderwidth=1
+                    )
+
+                else:
+                    continue
+
+                try:
+                    if fg and clase in ["tk.Button", "tk.Label", "tk.Checkbutton", "tk.Radiobutton"]:
+                        widget.config(fg=fg)
+
+                    if bg and clase in ["tk.Button", "tk.Label", "tk.Frame"]:
+                        widget.config(bg=bg)
+                except Exception:
+                    pass
+
+                widget.place(x=x, y=y, width=width, height=height)
+
+        except Exception as e:
+            tk.Label(
+                self.frame_preview,
+                text=f"No se pudo cargar la pantalla:\n{pantalla['nombre']}\n\n{e}",
+                bg="white",
+                fg="red",
+                font=("Segoe UI", 10),
+                justify="center"
+            ).pack(expand=True)
+
+    # ==================================================
+    # FUNCIONES ORIGINALES
+    # ==================================================
 
     def cargar_icono(self, ruta, size=(16, 16)):
         try:
@@ -785,7 +1214,7 @@ class VentanaPrincipal:
         widget.bind("<Button-1>", self.seleccionar)
         widget.bind("<B1-Motion>", self.arrastrar)
         widget.bind("<ButtonRelease-1>", self.finalizar_arrastre)
-       
+
         self.generar_codigo()
         self.marcar_modificado()
         self.guardar_estado_historial()
@@ -811,7 +1240,6 @@ class VentanaPrincipal:
         self.widget_actual = event.widget
         self.data_actual = None
         self.root.focus_set()
-
 
         for item in self.widgets:
             if item["widget"] == self.widget_actual:
@@ -1002,20 +1430,39 @@ class VentanaPrincipal:
             config_str = ", ".join(config)
 
             if tipo == "Button":
-                codigo += f"{nombre} = tk.Button(root, {config_str})\n"
+                codigo += f"{nombre} = tk.Button(root"
+                if config_str:
+                    codigo += f", {config_str}"
+                codigo += ")\n"
+
             elif tipo == "Label":
-                codigo += f"{nombre} = tk.Label(root, {config_str})\n"
+                codigo += f"{nombre} = tk.Label(root"
+                if config_str:
+                    codigo += f", {config_str}"
+                codigo += ")\n"
+
             elif tipo == "Entry":
                 codigo += f"{nombre} = tk.Entry(root)\n"
+
             elif tipo == "Check":
-                codigo += f"{nombre} = tk.Checkbutton(root, {config_str})\n"
+                codigo += f"{nombre} = tk.Checkbutton(root"
+                if config_str:
+                    codigo += f", {config_str}"
+                codigo += ")\n"
+
             elif tipo == "Radio":
-                codigo += f"{nombre} = tk.Radiobutton(root, {config_str})\n"
+                codigo += f"{nombre} = tk.Radiobutton(root"
+                if config_str:
+                    codigo += f", {config_str}"
+                codigo += ")\n"
+
             elif tipo == "Combo":
                 codigo += f"{nombre} = ttk.Combobox(root, values=['Opción 1', 'Opción 2'])\n"
                 codigo += f"{nombre}.current(0)\n"
+
             elif tipo == "Text":
                 codigo += f"{nombre} = tk.Text(root)\n"
+
             elif tipo == "Frame":
                 frame_config = []
                 if props["bg"]:
@@ -1119,7 +1566,7 @@ class VentanaPrincipal:
 
         self.btn_copiar_codigo.config(text="✅ Copiado")
         self.root.after(1200, lambda: self.btn_copiar_codigo.config(text="📋 Copiar"))
-        
+
     def mostrar_marca_agua_codigo(self, parent):
         try:
             ruta_base = os.path.dirname(__file__)
@@ -1129,7 +1576,7 @@ class VentanaPrincipal:
             imagen = imagen.resize((420, 420))
 
             alpha = imagen.split()[3]
-            alpha = alpha.point(lambda p: int(p * 1))  # opacidad baja
+            alpha = alpha.point(lambda p: int(p * 1))
             imagen.putalpha(alpha)
 
             self.img_marca_codigo = ImageTk.PhotoImage(imagen)
